@@ -38,6 +38,34 @@ const [prayerTimes, setPrayerTimes] = useState({
   maghrib: '17:30',
   isha: '19:00',
 });
+ const [settingsReady, setSettingsReady] = useState(false);
+
+useEffect(() => {
+  async function loadSettings() {
+    try {
+      const saved = await AsyncStorage.getItem('app_settings');
+      if (saved) {
+        const data = JSON.parse(saved);
+        if (data.language) setLanguage(data.language);
+        if (data.prayerTimes) setPrayerTimes(data.prayerTimes);
+      }
+    } catch (error) {
+      Alert.alert('خبرتیا', 'تنظیمات ونه لوستل شول');
+    } finally {
+      setSettingsReady(true);
+    }
+  }
+  loadSettings();
+}, []);
+
+useEffect(() => {
+  if (settingsReady) {
+    AsyncStorage.setItem(
+      'app_settings',
+      JSON.stringify({ language, prayerTimes })
+    );
+  }
+}, [language, prayerTimes, settingsReady]);
   const [books, setBooks] = useState({});
 const [storageReady, setStorageReady] = useState(false);
 
