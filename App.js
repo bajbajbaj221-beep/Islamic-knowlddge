@@ -288,7 +288,58 @@ async function choosePDF() {
       )}
 
       <ScrollView contentContainerStyle={styles.content}>
-        {!scholar && (
+       {screen === 'settings' && (
+  <View style={styles.addBox}>
+    <Text style={styles.heading}>⚙️ تنظیمات</Text>
+
+    <Text style={styles.label}>د اپلیکیشن ژبه</Text>
+
+    {['پښتو', 'فارسي', 'English'].map(lang => (
+      <TouchableOpacity
+        key={lang}
+        style={styles.addButton}
+        onPress={() => setLanguage(lang)}
+      >
+        <Text style={styles.addText}>
+          {language === lang ? '✓ ' : ''}
+          {lang}
+        </Text>
+      </TouchableOpacity>
+    ))}
+
+    <Text style={styles.label}>د لمانځه وختونه</Text>
+
+    {[
+      ['فجر', 'fajr'],
+      ['ظهر', 'dhuhr'],
+      ['عصر', 'asr'],
+      ['مغرب', 'maghrib'],
+      ['عشاء', 'isha'],
+    ].map(([name, id]) => (
+      <View key={id}>
+        <Text style={styles.label}>
+          {name}: {prayerTimes[id]}
+        </Text>
+        <TextInput
+          style={styles.input}
+          value={prayerTimes[id]}
+          placeholder="05:00"
+          onChangeText={value =>
+            setPrayerTimes(old => ({ ...old, [id]: value }))
+          }
+        />
+      </View>
+    ))}
+
+    <TouchableOpacity
+      style={styles.smallButton}
+      onPress={() => setScreen('home')}
+    >
+      <Text style={styles.addText}>بېرته کتابتون ته</Text>
+    </TouchableOpacity>
+  </View>
+)}
+      {!scholar && (
           <>
             <Text style={styles.heading}>د علماوو کتابتون</Text>
             <Text style={styles.description}>یو عالم انتخاب کړئ</Text>
