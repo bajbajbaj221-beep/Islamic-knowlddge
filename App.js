@@ -30,6 +30,27 @@ export default function App() {
   const [bookId, setBookId] = useState(null);
 
   const [books, setBooks] = useState({});
+const [storageReady, setStorageReady] = useState(false);
+
+useEffect(() => {
+  async function loadBooks() {
+    try {
+      const saved = await AsyncStorage.getItem('library_books');
+      if (saved) setBooks(JSON.parse(saved));
+    } catch (error) {
+      Alert.alert('خبرتیا', 'د کتابونو معلومات نه شول لوستل کېدای');
+    } finally {
+      setStorageReady(true);
+    }
+  }
+  loadBooks();
+}, []);
+
+useEffect(() => {
+  if (storageReady) {
+    AsyncStorage.setItem('library_books', JSON.stringify(books));
+  }
+}, [books, storageReady]);
   const [newBook, setNewBook] = useState('');
   const [newChapter, setNewChapter] = useState('');
   const [newBab, setNewBab] = useState('');
