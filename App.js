@@ -306,7 +306,35 @@ async function choosePDF() {
         </Text>
       </TouchableOpacity>
     ))}
+<Text style={styles.heading}>🌅 سهارني اذکار</Text>
 
+{[
+  'آیت الکرسي',
+  'سورة الإخلاص',
+  'سورة الفلق',
+  'سورة الناس',
+  'أصبحنا وأصبح الملك لله',
+  'سبحان الله وبحمده'
+].map((item, index) => (
+  <Text key={index} style={styles.lesson}>
+    {index + 1}. {item}
+  </Text>
+))}
+
+<Text style={styles.heading}>🌙 ماښامني اذکار</Text>
+
+{[
+  'آیت الکرسي',
+  'سورة الإخلاص',
+  'سورة الفلق',
+  'سورة الناس',
+  'أمسينا وأمسى الملك لله',
+  'أستغفر الله وأتوب إليه'
+].map((item, index) => (
+  <Text key={index} style={styles.lesson}>
+    {index + 1}. {item}
+  </Text>
+))}
     <Text style={styles.label}>د لمانځه وختونه</Text>
 
     {[
