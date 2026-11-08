@@ -1,4 +1,4 @@
-
+ 
 name: Build Android APK
 
 on:
@@ -24,7 +24,7 @@ jobs:
         run: npm install -g eas-cli
 
       - name: Link Expo project
-        run: eas init --id 1b602cea-3e42-4e0e-a926-42ec9612742d --non-interactive
+        run: eas init --id 1b602cea-3e42-4e0e-a926-42ec9612742d --non-interactive --force
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
