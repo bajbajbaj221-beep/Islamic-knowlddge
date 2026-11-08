@@ -1,4 +1,4 @@
-name: Build Android APK
+ name: Build Android APK
 
 on:
   workflow_dispatch:
@@ -14,13 +14,18 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Install dependencies
         run: npm install
 
       - name: Install EAS CLI
         run: npm install -g eas-cli
+
+      - name: Link Expo project
+        run: eas init --id 1b602cea-3e42-4e0e-a926-42ec9612742d --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build APK
         run: eas build --platform android --profile preview --non-interactive
