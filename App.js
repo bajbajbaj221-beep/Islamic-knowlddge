@@ -8,7 +8,7 @@ import {
 import * as DocumentPicker from 'expo-document-picker';
 import * as Sharing from 'expo-sharing';
 import { WebView } from 'react-native-webview';
- 
+ import AsyncStorage from '@react-native-async-storage/async-storage';
 const scholars = [
   'شیخ عبدالسلام رستمي رحمه الله',
   'شیخ أبو محمد أمين الله البشاوري حفظه الله',
