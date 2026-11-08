@@ -339,7 +339,7 @@ async function choosePDF() {
     </TouchableOpacity>
   </View>
 )}
-      {!scholar && (
+      {screen !== 'settings' && !scholar && (
           <>
             <Text style={styles.heading}>د علماوو کتابتون</Text>
             <Text style={styles.description}>یو عالم انتخاب کړئ</Text>
