@@ -28,7 +28,16 @@ export default function App() {
   const [scholar, setScholar] = useState(null);
   const [category, setCategory] = useState(null);
   const [bookId, setBookId] = useState(null);
-
+const [screen, setScreen] = useState('home');
+const [language, setLanguage] = useState('پښتو');
+const [searchQuery, setSearchQuery] = useState('');
+const [prayerTimes, setPrayerTimes] = useState({
+  fajr: '05:00',
+  dhuhr: '12:30',
+  asr: '15:30',
+  maghrib: '17:30',
+  isha: '19:00',
+});
   const [books, setBooks] = useState({});
 const [storageReady, setStorageReady] = useState(false);
 
