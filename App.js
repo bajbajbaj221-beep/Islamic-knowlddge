@@ -273,7 +273,14 @@ async function choosePDF() {
         <Text style={styles.logo}>میراث اسلام</Text>
         <Text style={styles.headerSub}>اسلامي علمي کتابتون</Text>
       </View>
-
+<TouchableOpacity
+  onPress={() => setScreen('settings')}
+  style={{ marginTop: 10, backgroundColor: '#B99545', padding: 9, borderRadius: 8 }}
+>
+  <Text style={{ color: '#07130F', fontWeight: 'bold' }}>
+    ⚙️ تنظیمات
+  </Text>
+</TouchableOpacity>
       {(scholar || category || bookId) && (
         <TouchableOpacity style={styles.back} onPress={back}>
           <Text style={styles.backText}>→ شاته تګ</Text>
