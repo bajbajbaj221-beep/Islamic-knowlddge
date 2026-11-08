@@ -1,8 +1,21 @@
- import React, { useState, useEffect } from 'react';
+ 
+import React, { useState, useEffect } from 'react';
+
 import {
-  View, Text, ScrollView, TouchableOpacity, TextInput,
-  StyleSheet, StatusBar, Alert, Share, Switch,
-  Platform, ActivityIndicator
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  StyleSheet,
+  StatusBar,
+  Alert,
+  Share,
+  Switch,
+  Platform,
+  ActivityIndicator,
+  BackHandler,
+  KeyboardAvoidingView
 } from 'react-native';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -18,70 +31,45 @@ import {
   Madhab
 } from 'adhan';
 
+// ==================================================
+// 01 - د خبرتیاوو تنظیمات
+// ==================================================
+
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
     shouldPlaySound: true,
-    shouldSetBadge: false
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true
   })
 });
 
+// ==================================================
+// 02 - د اپلیکیشن رنګونه
+// ==================================================
+
 const COLORS = {
   background: '#101713',
+  background2: '#141E18',
   card: '#1B2921',
   card2: '#24352A',
+  card3: '#2B3D30',
   gold: '#D6B56D',
   goldLight: '#F0DDAA',
   green: '#315C43',
+  greenLight: '#497451',
   white: '#F5F0E4',
   muted: '#B9B6A9',
   red: '#B85C50',
-  border: '#526044'
+  border: '#526044',
+  black: '#090D0A'
 };
 
-const SCHOLARS = [
-  'شیخ القرآن علامه سید عبدالسلام رستمي رحمه الله',
-  'شیخ القرآن أبو محمد أمين الله البشاوري حفظه الله',
-  'شیخ القرآن أبو محمد سردارولي ثاقب رحمه الله',
-  'شیخ القرآن أبو عبيدالله متوكل رحمه الله',
-  'شیخ القرآن أبو عمر عبدالمنان محمدي حفظه الله'
-];
-
-const SECTIONS = [
-  'د قرآن کریم زده کړې',
-  'د احادیثو زده کړې',
-  'تاریخ او سیرت',
-  'اسلامي علوم او فنون',
-  'سوالونه او ځوابونه',
-  'عمومي درسونه او کتابونه'
-];
-
-const LANGUAGES = ['پښتو', 'عربي', 'اردو', 'فارسي', 'English'];
-
-const CALC_METHODS = [
-  { label: 'ام القری', value: 'UmmAlQura' },
-  { label: 'کراچۍ', value: 'Karachi' },
-  { label: 'مسلم ورلډ لیګ', value: 'MuslimWorldLeague' },
-  { label: 'مصري طریقه', value: 'Egyptian' },
-  { label: 'شمالي امریکا ISNA', value: 'NorthAmerica' }
-];
-
-const DEFAULT_SETTINGS = {
-  language: 'پښتو',
-  fontFamily: 'sans-serif',
-  headingColor: COLORS.goldLight,
-  textColor: COLORS.white,
-  calculationMethod: 'UmmAlQura',
-  madhab: 'Hanafi',
-  prayerAdjustments: {
-    fajr: 0, sunrise: 0, dhuhr: 0,
-    asr: 0, maghrib: 0, isha: 0
-  },
-  latitude: null,
-  longitude: null,
-  city: '',
-  notificationsEnabled: false
-};
+// ==================================================
+// 03 - د ذخیره کولو ثابت نومونه
+// دا نومونه د پخوانیو معلوماتو د ساتلو لپاره دي
+// ==================================================
 
 const STORAGE = {
   settings: 'app_settings',
@@ -93,12 +81,109 @@ const STORAGE = {
   favorites: 'library_favorites'
 };
 
-const makeId = () =>
-  Date.now().toString() + Math.random().toString(36).slice(2, 7);
+// ==================================================
+// 04 - د علماوو نومونه
+// ==================================================
+
+const SCHOLARS = [
+  'شیخ القرآن علامه سید عبدالسلام رستمي رحمه الله',
+  'شیخ القرآن أبو محمد أمين الله البشاوري حفظه الله',
+  'شیخ القرآن أبو محمد سردارولي ثاقب رحمه الله',
+  'شیخ القرآن أبو عبيدالله متوكل رحمه الله',
+  'شیخ القرآن أبو عمر عبدالمنان محمدي حفظه الله'
+];
+
+// ==================================================
+// 05 - د علمي برخو نومونه
+// ==================================================
+
+const SECTIONS = [
+  'د قرآن کریم زده کړې',
+  'د احادیثو زده کړې',
+  'تاریخ او سیرت',
+  'اسلامي علوم او فنون',
+  'سوالونه او ځوابونه',
+  'عمومي درسونه او کتابونه'
+];
+
+// ==================================================
+// 06 - د ژبو نومونه
+// ==================================================
+
+const LANGUAGES = [
+  'پښتو',
+  'العربية',
+  'اردو',
+  'فارسی',
+  'English'
+];
+
+// ==================================================
+// 07 - د لمانځه د محاسبې طریقې
+// ==================================================
+
+const PRAYER_METHODS = [
+  { label: 'ام القری', value: 'UmmAlQura' },
+  { label: 'کراچي', value: 'Karachi' },
+  { label: 'اسلامي نړۍ', value: 'MuslimWorldLeague' },
+  { label: 'مصر', value: 'Egyptian' },
+  { label: 'شمالي امریکا', value: 'NorthAmerica' }
+];
+
+// ==================================================
+// 08 - د لمانځه نومونه
+// ==================================================
+
+const PRAYERS = [
+  { key: 'fajr', title: 'سهار', icon: '🌅' },
+  { key: 'sunrise', title: 'لمر ختل', icon: '☀️' },
+  { key: 'dhuhr', title: 'ماسپښین', icon: '🌤️' },
+  { key: 'asr', title: 'مازدیګر', icon: '🌇' },
+  { key: 'maghrib', title: 'ماښام', icon: '🌆' },
+  { key: 'isha', title: 'ماخستن', icon: '🌙' }
+];
+
+// ==================================================
+// 09 - د اذکارو کټګورۍ
+// ==================================================
+
+const DHIKR_CATEGORIES = [
+  'د سهار اذکار',
+  'د ماښام اذکار',
+  'د خوب اذکار',
+  'له لمانځه وروسته اذکار',
+  'عمومي اذکار'
+];
+
+// ==================================================
+// 10 - د اصلي اپلیکیشن پیل
+// ==================================================
 
 export default function App() {
+
+  // ------------------------------------------------
+  // 10.1 - د سکرینونو حالت
+  // ------------------------------------------------
+
   const [screen, setScreen] = useState('home');
-  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const [previousScreen, setPreviousScreen] = useState('home');
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  // ------------------------------------------------
+  // 10.2 - د انتخاب شویو برخو معلومات
+  // ------------------------------------------------
+
+  const [selectedScholar, setSelectedScholar] = useState('');
+  const [selectedSection, setSelectedSection] = useState('');
+  const [selectedFolder, setSelectedFolder] = useState('');
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [selectedDhikr, setSelectedDhikr] = useState(null);
+
+  // ------------------------------------------------
+  // 10.3 - د کتابونو او نورو معلوماتو حالت
+  // ------------------------------------------------
 
   const [books, setBooks] = useState({});
   const [notes, setNotes] = useState([]);
@@ -107,42 +192,78 @@ export default function App() {
   const [adhkar, setAdhkar] = useState([]);
   const [favorites, setFavorites] = useState([]);
 
-  const [ready, setReady] = useState(false);
-  const [loadingPrayer, setLoadingPrayer] = useState(false);
+  // ------------------------------------------------
+  // 10.4 - د اپلیکیشن تنظیمات
+  // ------------------------------------------------
 
-  const [selectedScholar, setSelectedScholar] = useState('');
-  const [selectedSection, setSelectedSection] = useState('');
-  const [selectedFolder, setSelectedFolder] = useState('');
-  const [selectedItem, setSelectedItem] = useState(null);
-  const [selectedDhikr, setSelectedDhikr] = useState(null);
+  const [settings, setSettings] = useState({
+    language: 'پښتو',
+    fontFamily: 'System',
+    headingColor: '#F0DDAA',
+    textColor: '#F5F0E4',
+    calculationMethod: 'Karachi',
+    madhab: 'Hanafi',
 
-  const [searchQuery, setSearchQuery] = useState('');
+    prayerAdjustments: {
+      fajr: 0,
+      sunrise: 0,
+      dhuhr: 0,
+      asr: 0,
+      maghrib: 0,
+      isha: 0
+    },
+
+    latitude: null,
+    longitude: null,
+    city: '',
+    notificationsEnabled: true
+  });
+
+  // ------------------------------------------------
+  // 10.5 - د فورمونو معلومات
+  // ------------------------------------------------
+
   const [formTitle, setFormTitle] = useState('');
+  const [formDescription, setFormDescription] = useState('');
   const [formText, setFormText] = useState('');
-  const [formTranslation, setFormTranslation] = useState('');
-  const [formSource, setFormSource] = useState('');
-  const [formCount, setFormCount] = useState('3');
-  const [formScholar, setFormScholar] = useState(SCHOLARS[1]);
+  const [formAudio, setFormAudio] = useState('');
+  const [formPDF, setFormPDF] = useState('');
   const [formDate, setFormDate] = useState('');
   const [formTime, setFormTime] = useState('');
-  const [formAudio, setFormAudio] = useState('');
-  const [formCategory, setFormCategory] = useState('قرآن');
-  const [formFolder, setFormFolder] = useState('Lessons');
+  const [formCount, setFormCount] = useState('');
+
+  const [searchText, setSearchText] = useState('');
+  const [noteSearch, setNoteSearch] = useState('');
+
+  // ------------------------------------------------
+  // 10.6 - د کتابونو د څپرکو او درسونو فورمونه
+  // ------------------------------------------------
+
+  const [chapterName, setChapterName] = useState('');
+  const [lessonName, setLessonName] = useState('');
+  const [editorType, setEditorType] = useState('');
+
+  // ------------------------------------------------
+  // 10.7 - د لمانځه معلومات
+  // ------------------------------------------------
 
   const [prayerTimes, setPrayerTimes] = useState(null);
-  const [prayerDate, setPrayerDate] = useState('');
+  const [prayerDate, setPrayerDate] = useState(new Date());
+  const [locationLoading, setLocationLoading] = useState(false);
 
-  // Load all saved information without deleting old library data.
+  // ==================================================
+  // 11 - د معلوماتو لوستل
+  // ==================================================
+
   useEffect(() => {
     loadAllData();
   }, []);
 
   async function loadAllData() {
     try {
-      const [
-        oldSettings, oldBooks, oldNotes, savedGlobal,
-        savedReminders, savedAdhkar, savedFavorites
-      ] = await Promise.all([
+      setLoading(true);
+
+      const results = await Promise.all([
         AsyncStorage.getItem(STORAGE.settings),
         AsyncStorage.getItem(STORAGE.books),
         AsyncStorage.getItem(STORAGE.notes),
@@ -152,84 +273,112 @@ export default function App() {
         AsyncStorage.getItem(STORAGE.favorites)
       ]);
 
-      if (oldSettings) {
-        const parsed = JSON.parse(oldSettings);
-        setSettings({
-          ...DEFAULT_SETTINGS,
-          ...parsed,
-          prayerAdjustments: {
-            ...DEFAULT_SETTINGS.prayerAdjustments,
-            ...(parsed.prayerAdjustments || {})
-          }
-        });
-        if (parsed.prayerTimes) setPrayerTimes(parsed.prayerTimes);
+      const [
+        savedSettings,
+        savedBooks,
+        savedNotes,
+        savedGlobal,
+        savedReminders,
+        savedAdhkar,
+        savedFavorites
+      ] = results;
+
+      if (savedSettings) {
+        setSettings(old => ({
+          ...old,
+          ...JSON.parse(savedSettings)
+        }));
       }
 
-      if (oldBooks) setBooks(JSON.parse(oldBooks));
-      if (oldNotes) setNotes(JSON.parse(oldNotes));
+      if (savedBooks) setBooks(JSON.parse(savedBooks));
+      if (savedNotes) setNotes(JSON.parse(savedNotes));
       if (savedGlobal) setGlobalItems(JSON.parse(savedGlobal));
       if (savedReminders) setReminders(JSON.parse(savedReminders));
       if (savedAdhkar) setAdhkar(JSON.parse(savedAdhkar));
       if (savedFavorites) setFavorites(JSON.parse(savedFavorites));
+
     } catch (error) {
-      Alert.alert('خبرتیا', 'د معلوماتو د لوستلو پر مهال ستونزه رامنځته شوه.');
+      Alert.alert('خبرتیا', 'د معلوماتو په لوستلو کې ستونزه رامنځته شوه.');
     } finally {
-      setReady(true);
+      setLoading(false);
     }
   }
 
-  useEffect(() => {
-    if (!ready) return;
-    saveData(STORAGE.settings, settings);
-  }, [settings, ready]);
-
-  useEffect(() => {
-    if (!ready) return;
-    saveData(STORAGE.books, books);
-  }, [books, ready]);
-
-  useEffect(() => {
-    if (!ready) return;
-    saveData(STORAGE.notes, notes);
-  }, [notes, ready]);
-
-  useEffect(() => {
-    if (!ready) return;
-    saveData(STORAGE.global, globalItems);
-  }, [globalItems, ready]);
-
-  useEffect(() => {
-    if (!ready) return;
-    saveData(STORAGE.reminders, reminders);
-  }, [reminders, ready]);
-
-  useEffect(() => {
-    if (!ready) return;
-    saveData(STORAGE.adhkar, adhkar);
-  }, [adhkar, ready]);
-
-  useEffect(() => {
-    if (!ready) return;
-    saveData(STORAGE.favorites, favorites);
-  }, [favorites, ready]);
+  // ==================================================
+  // 12 - د معلوماتو خوندي کول
+  // ==================================================
 
   async function saveData(key, value) {
     try {
-      await AsyncStorage.setItem(key, JSON.stringify(value));
+      setSaving(true);
+
+      await AsyncStorage.setItem(
+        key,
+        JSON.stringify(value)
+      );
+
+      return true;
+
     } catch (error) {
       Alert.alert('ستونزه', 'معلومات خوندي نه شول.');
+      return false;
+
+    } finally {
+      setSaving(false);
     }
   }
 
-  function updateSetting(name, value) {
-    setSettings(old => ({ ...old, [name]: value }));
+  async function updateSettings(newSettings) {
+    const updated = {
+      ...settings,
+      ...newSettings
+    };
+
+    setSettings(updated);
+    await saveData(STORAGE.settings, updated);
+  }
+
+  async function saveBooks(updated) {
+    setBooks(updated);
+    await saveData(STORAGE.books, updated);
+  }
+
+  async function saveNotes(updated) {
+    setNotes(updated);
+    await saveData(STORAGE.notes, updated);
+  }
+
+  async function saveGlobalItems(updated) {
+    setGlobalItems(updated);
+    await saveData(STORAGE.global, updated);
+  }
+
+  async function saveReminders(updated) {
+    setReminders(updated);
+    await saveData(STORAGE.reminders, updated);
+  }
+
+  async function saveAdhkar(updated) {
+    setAdhkar(updated);
+    await saveData(STORAGE.adhkar, updated);
+  }
+
+  async function saveFavorites(updated) {
+    setFavorites(updated);
+    await saveData(STORAGE.favorites, updated);
+  }
+
+  // ==================================================
+  // 13 - د سکرینونو بدلول
+  // ==================================================
+
+  function navigate(nextScreen) {
+    setPreviousScreen(screen);
+    setScreen(nextScreen);
   }
 
   function goBack() {
-    if (screen === 'home') return;
-
     const parents = {
-      settings: 'home',
       scholars: 'home',
       scholar: 'scholars',
       oldCategory: 'scholar',
@@ -237,6 +386,7 @@ export default function App() {
       section: 'home',
       sectionFolder: 'section',
       itemDetails: 'sectionFolder',
+      lessonEditor: 'sectionFolder',
       notes: 'home',
       noteEditor: 'notes',
       reminders: 'home',
@@ -246,6 +396,7 @@ export default function App() {
       dhikrDetails: 'adhkarFolder',
       dhikrEditor: 'adhkarFolder',
       prayer: 'home',
+      settings: 'home',
       search: 'home',
       favorites: 'home'
     };
@@ -253,1523 +404,2998 @@ export default function App() {
     setScreen(parents[screen] || 'home');
   }
 
-  function header(title) {
-    return (
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={goBack}>
-          <Text style={styles.backText}>‹ شاته</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{title}</Text>
-      </View>
-    );
-  }
+  useEffect(() => {
+    const backAction = () => {
+      if (screen !== 'home') {
+        goBack();
+        return true;
+      }
 
-  function card(title, subtitle, onPress, icon = '✦') {
-    return (
-      <TouchableOpacity
-        key={title}
-        style={styles.card}
-        onPress={onPress}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.cardIcon}>{icon}</Text>
-        <View style={styles.cardWords}>
-          <Text style={styles.cardTitle}>{title}</Text>
-          {!!subtitle && <Text style={styles.cardSubtitle}>{subtitle}</Text>}
-        </View>
-        <Text style={styles.arrow}>‹</Text>
-      </TouchableOpacity>
-    );
-  }
-
-  function smallButton(label, onPress, color = COLORS.green) {
-    return (
-      <TouchableOpacity
-        style={[styles.smallButton, { backgroundColor: color }]}
-        onPress={onPress}
-      >
-        <Text style={styles.smallButtonText}>{label}</Text>
-      </TouchableOpacity>
-    );
-  }
-
-  function field(label, value, onChangeText, placeholder = '') {
-    return (
-      <View style={styles.fieldBox}>
-        <Text style={styles.fieldLabel}>{label}</Text>
-        <TextInput
-          value={value}
-          onChangeText={onChangeText}
-          placeholder={placeholder}
-          placeholderTextColor={COLORS.muted}
-          style={styles.input}
-          multiline
-          textAlignVertical="top"
-        />
-      </View>
-    );
-  }
-
-  function openScholar(scholar) {
-    setSelectedScholar(scholar);
-    setScreen('scholar');
-  }
-
-  function openSection(section) {
-    setSelectedSection(section);
-    setScreen('section');
-  }
-
-  function openGlobalFolder(folder) {
-    setSelectedFolder(folder);
-    setScreen('sectionFolder');
-  }
-
-  function getSectionItems(section, folder) {
-    return globalItems.filter(item =>
-      item.section === section && item.folder === folder
-    );
-  }
-
-  function addGlobalItem() {
-    if (!formTitle.trim()) {
-      Alert.alert('خبرتیا', 'د کتاب یا درس نوم ولیکه.');
-      return;
-    }
-
-    const item = {
-      id: makeId(),
-      title: formTitle.trim(),
-      text: formText,
-      section: selectedSection,
-      folder: selectedFolder,
-      scholar: formScholar,
-      audio: formAudio,
-      createdAt: new Date().toISOString()
+      return false;
     };
 
-    setGlobalItems(old => [item, ...old]);
-    clearForm();
-    Alert.alert('بریالی شو', 'معلومات په کتابتون کې ثبت شول.');
-  }
+    const subscription = BackHandler.addEventListener(
+      'hardwareBackPress',
+      backAction
+    );
+
+    return () => subscription.remove();
+  }, [screen]);
+
+  // ==================================================
+  // 14 - د فورمونو پاکول
+  // ==================================================
 
   function clearForm() {
     setFormTitle('');
+    setFormDescription('');
     setFormText('');
-    setFormTranslation('');
-    setFormSource('');
-    setFormCount('3');
+    setFormAudio('');
+    setFormPDF('');
     setFormDate('');
     setFormTime('');
-    setFormAudio('');
+    setFormCount('');
   }
 
-  function deleteGlobalItem(id) {
-    Alert.alert('حذف کول', 'ایا دا معلومات حذف کړې؟', [
+  // ==================================================
+  // 15 - د نوټونو سیستم
+  // ==================================================
+
+  function openNewNote() {
+    clearForm();
+    setSelectedItem(null);
+    navigate('noteEditor');
+  }
+
+  function openNote(note) {
+    setSelectedItem(note);
+    setFormTitle(note.title || '');
+    setFormText(note.text || '');
+    navigate('noteEditor');
+  }
+
+  async function saveNote() {
+    if (!formTitle.trim() && !formText.trim()) {
+      Alert.alert('خبرتیا', 'د نوټ متن ولیکئ.');
+      return;
+    }
+
+    let updated;
+
+    if (selectedItem?.id) {
+      updated = notes.map(note =>
+        note.id === selectedItem.id
+          ? {
+              ...note,
+              title: formTitle,
+              text: formText,
+              updatedAt: new Date().toISOString()
+            }
+          : note
+      );
+    } else {
+      updated = [
+        {
+          id: Date.now().toString(),
+          title: formTitle.trim() || 'بې نومه نوټ',
+          text: formText,
+          createdAt: new Date().toISOString()
+        },
+        ...notes
+      ];
+    }
+
+    await saveNotes(updated);
+
+    clearForm();
+    setSelectedItem(null);
+    setScreen('notes');
+  }
+
+  async function deleteNote(id) {
+    Alert.alert('د نوټ حذف', 'ایا دا نوټ حذف کول غواړئ؟', [
       { text: 'نه', style: 'cancel' },
       {
         text: 'هو، حذف یې کړه',
         style: 'destructive',
-        onPress: () => {
-          setGlobalItems(old => old.filter(item => item.id !== id));
-          setScreen('sectionFolder');
+        onPress: async () => {
+          await saveNotes(
+            notes.filter(note => note.id !== id)
+          );
         }
       }
     ]);
   }
 
-  function addNote() {
-    if (!formTitle.trim() && !formText.trim()) {
-      Alert.alert('خبرتیا', 'د یادښت متن ولیکه.');
-      return;
-    }
-
-    const note = {
-      id: makeId(),
-      title: formTitle || 'بې نومه یادښت',
-      text: formText,
-      date: new Date().toLocaleString()
-    };
-
-    setNotes(old => [note, ...old]);
-    clearForm();
-    setScreen('notes');
-  }
-
-  function deleteNote(id) {
-    Alert.alert('حذف کول', 'دا یادښت حذف شي؟', [
-      { text: 'نه', style: 'cancel' },
-      {
-        text: 'هو',
-        style: 'destructive',
-        onPress: () => setNotes(old => old.filter(n => n.id !== id))
-      }
-    ]);
-  }
+  // ==================================================
+  // 16 - د شریکولو سیستم
+  // ==================================================
 
   async function shareText(title, text) {
     try {
-      await Share.share({ title, message: `${title}\n\n${text || ''}` });
+      await Share.share({
+        title: title || 'میراث اسلام',
+        message: `${title || 'میراث اسلام'}\n\n${text || ''}`
+      });
     } catch (error) {
       Alert.alert('ستونزه', 'شریکول ترسره نه شول.');
     }
   }
 
-  async function pickAudio() {
+  async function shareFile(uri, mimeType) {
     try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: ['audio/*'],
-        copyToCacheDirectory: true
-      });
-      if (!result.canceled && result.assets?.length) {
-        setFormAudio(result.assets[0].uri);
-        Alert.alert('غږیز فایل', 'فایل وټاکل شو.');
+      if (!uri) {
+        Alert.alert('خبرتیا', 'لومړی فایل وټاکئ.');
+        return;
       }
-    } catch (error) {
-      Alert.alert('ستونزه', 'غږیز فایل نه شو ټاکل کېدای.');
-    }
-  }
 
-  async function pickPDF() {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: 'application/pdf',
-        copyToCacheDirectory: true
-      });
-      if (!result.canceled && result.assets?.length) {
-        const asset = result.assets[0];
-        setFormText(old => `${old}\n\nPDF: ${asset.name}\n${asset.uri}`);
-        Alert.alert('PDF', 'د PDF فایل پته د معلوماتو سره ثبت شوه.');
-      }
-    } catch (error) {
-      Alert.alert('ستونزه', 'PDF فایل نه شو ټاکل کېدای.');
-    }
-  }
+      const available = await Sharing.isAvailableAsync();
 
-  async function shareFile(uri) {
-    if (!uri) {
-      Alert.alert('خبرتیا', 'د شریکولو لپاره فایل نشته.');
-      return;
-    }
-    try {
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(uri);
-      } else {
-        Alert.alert('خبرتیا', 'په دې وسیله کې د فایل شریکول فعال نه دي.');
+      if (!available) {
+        Alert.alert('خبرتیا', 'د فایل شریکول فعال نه دي.');
+        return;
       }
+
+      await Sharing.shareAsync(uri, {
+        mimeType: mimeType || undefined,
+        dialogTitle: 'د میراث اسلام فایل شریکول'
+      });
+
     } catch (error) {
       Alert.alert('ستونزه', 'فایل شریک نه شو.');
     }
   }
 
-  // Prayer time calculation using the selected method and madhhab.
-  function getCalculationParameters() {
-    switch (settings.calculationMethod) {
-      case 'Karachi':
-        return CalculationMethod.Karachi();
-      case 'MuslimWorldLeague':
-        return CalculationMethod.MuslimWorldLeague();
-      case 'Egyptian':
-        return CalculationMethod.Egyptian();
-      case 'NorthAmerica':
-        return CalculationMethod.NorthAmerica();
-      case 'UmmAlQura':
-      default:
-        return CalculationMethod.UmmAlQura();
-    }
-  }
+  // ==================================================
+  // 17 - د آډیو فایل ټاکل
+  // ==================================================
 
-  function formatTime(date, adjustment = 0) {
-    if (!date) return '--:--';
-    const adjusted = new Date(date.getTime() + adjustment * 60000);
-    return adjusted.toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  }
-
-  async function calculatePrayerTimes() {
-    setLoadingPrayer(true);
+  async function pickAudio() {
     try {
-      let latitude = settings.latitude;
-      let longitude = settings.longitude;
-
-      if (latitude == null || longitude == null) {
-        const permission = await Location.requestForegroundPermissionsAsync();
-        if (permission.status !== 'granted') {
-          Alert.alert(
-            'د ځای اجازه',
-            'د لمانځه د وختونو لپاره د موبایل د موقعیت اجازه ورکړه.'
-          );
-          setLoadingPrayer(false);
-          return;
-        }
-
-        const position = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced
-        });
-
-        latitude = position.coords.latitude;
-        longitude = position.coords.longitude;
-
-        updateSetting('latitude', latitude);
-        updateSetting('longitude', longitude);
-      }
-
-      const coordinates = new Coordinates(latitude, longitude);
-      const params = getCalculationParameters();
-      params.madhab = settings.madhab === 'Hanafi'
-        ? Madhab.Hanafi
-        : Madhab.Shafi;
-
-      const today = new Date();
-      const times = new PrayerTimes(coordinates, today, params);
-
-      const adjustments = settings.prayerAdjustments || {};
-
-      const result = {
-        fajr: formatTime(times.fajr, adjustments.fajr),
-        sunrise: formatTime(times.sunrise, adjustments.sunrise),
-        dhuhr: formatTime(times.dhuhr, adjustments.dhuhr),
-        asr: formatTime(times.asr, adjustments.asr),
-        maghrib: formatTime(times.maghrib, adjustments.maghrib),
-        isha: formatTime(times.isha, adjustments.isha)
-      };
-
-      setPrayerTimes(result);
-      setPrayerDate(today.toLocaleDateString());
-      updateSetting('prayerTimes', result);
-      Alert.alert('بریالي شو', 'د لمانځه وختونه تازه شول.');
-    } catch (error) {
-      Alert.alert(
-        'د وختونو ستونزه',
-        'وختونه محاسبه نه شول. د موقعیت اجازه او تنظیمات وګوره.'
-      );
-    } finally {
-      setLoadingPrayer(false);
-    }
-  }
-
-  function updatePrayerAdjustment(name, value) {
-    const number = parseInt(value, 10);
-    setSettings(old => ({
-      ...old,
-      prayerAdjustments: {
-        ...old.prayerAdjustments,
-        [name]: Number.isNaN(number) ? 0 : number
-      }
-    }));
-  }
-
-  async function enableNotifications() {
-    try {
-      const permission = await Notifications.requestPermissionsAsync();
-      if (permission.status !== 'granted') {
-        Alert.alert('اجازه', 'د خبرتیاوو اجازه فعاله نه شوه.');
-        return false;
-      }
-
-      if (Platform.OS === 'android') {
-        await Notifications.setNotificationChannelAsync('lessons', {
-          name: 'د درسونو خبرتیاوې',
-          importance: Notifications.AndroidImportance.HIGH,
-          sound: 'default'
-        });
-      }
-
-      updateSetting('notificationsEnabled', true);
-      return true;
-    } catch (error) {
-      Alert.alert('ستونزه', 'خبرتیاوې فعالې نه شوې.');
-      return false;
-    }
-  }
-
-  async function addReminder() {
-    if (!formTitle.trim() || !formDate.trim() || !formTime.trim()) {
-      Alert.alert(
-        'نا بشپړ معلومات',
-        'د درس نوم، نېټه او وخت ولیکه. د نېټې بڼه: 2026-12-25 او وخت: 18:30'
-      );
-      return;
-    }
-
-    const date = new Date(`${formDate}T${formTime}:00`);
-    if (Number.isNaN(date.getTime()) || date <= new Date()) {
-      Alert.alert('ناسم وخت', 'راتلونکې سمه نېټه او وخت ولیکه.');
-      return;
-    }
-
-    const permitted = await enableNotifications();
-    if (!permitted) return;
-
-    try {
-      const notificationId = await Notifications.scheduleNotificationAsync({
-        content: {
-          title: 'د درس یادونه: ' + formTitle,
-          body: formText || 'ستاسو د درس وخت راورسېد.',
-          sound: 'default'
-        },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.DATE,
-          date
-        }
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['audio/*'],
+        copyToCacheDirectory: true,
+        multiple: false
       });
 
-      const reminder = {
-        id: makeId(),
-        title: formTitle,
-        text: formText,
-        date: formDate,
-        time: formTime,
-        notificationId
-      };
+      if (!result.canceled && result.assets?.length) {
+        const file = result.assets[0];
 
-      setReminders(old => [reminder, ...old]);
-      clearForm();
-      setScreen('reminders');
-      Alert.alert('بریالي شو', 'د درس خبرتیا ثبت شوه.');
+        setFormAudio(file.uri);
+
+        if (!formDescription) {
+          setFormDescription(file.name || '');
+        }
+      }
+
     } catch (error) {
-      Alert.alert('ستونزه', 'خبرتیا ثبت نه شوه.');
+      Alert.alert('ستونزه', 'آډیو فایل انتخاب نه شو.');
     }
   }
 
-  function deleteReminder(reminder) {
-    Alert.alert('حذف کول', 'دا خبرتیا حذف شي؟', [
+  // ==================================================
+  // 18 - د PDF فایل ټاکل
+  // ==================================================
+
+  async function pickPDF() {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/pdf',
+        copyToCacheDirectory: true,
+        multiple: false
+      });
+
+      if (!result.canceled && result.assets?.length) {
+        const file = result.assets[0];
+
+        setFormPDF(file.uri);
+
+        if (!formDescription) {
+          setFormDescription(file.name || '');
+        }
+      }
+
+    } catch (error) {
+      Alert.alert('ستونزه', 'PDF فایل انتخاب نه شو.');
+    }
+  }
+
+  // ==================================================
+  // 19 - د عمومي درسونو اضافه کول
+  // ==================================================
+
+  async function addGlobalItem() {
+    if (!formTitle.trim()) {
+      Alert.alert('خبرتیا', 'د درس نوم ولیکئ.');
+      return;
+    }
+
+    const newItem = {
+      id: Date.now().toString(),
+      title: formTitle.trim(),
+      description: formDescription,
+      text: formText,
+      audio: formAudio,
+      pdf: formPDF,
+      scholar: selectedScholar,
+      section: selectedSection,
+      folder: selectedFolder,
+      createdAt: new Date().toISOString()
+    };
+
+    await saveGlobalItems([
+      newItem,
+      ...globalItems
+    ]);
+
+    clearForm();
+    setScreen('sectionFolder');
+  }
+
+  async function deleteGlobalItem(id) {
+    Alert.alert('د درس حذف', 'ایا دا درس حذف کول غواړئ؟', [
       { text: 'نه', style: 'cancel' },
       {
         text: 'هو',
         style: 'destructive',
         onPress: async () => {
-          if (reminder.notificationId) {
-            try {
-              await Notifications.cancelScheduledNotificationAsync(
-                reminder.notificationId
-              );
-            } catch (error) {}
-          }
-          setReminders(old => old.filter(item => item.id !== reminder.id));
+          await saveGlobalItems(
+            globalItems.filter(item => item.id !== id)
+          );
         }
       }
     ]);
   }
 
-  function addDhikr() {
-    if (!formTitle.trim() || !formText.trim()) {
-      Alert.alert('خبرتیا', 'د دعا نوم او عربي متن ولیکه.');
-      return;
-    }
-
-    const item = {
-      id: makeId(),
-      folder: selectedFolder || 'سهار',
-      title: formTitle,
-      arabic: formText,
-      translation: formTranslation,
-      source: formSource,
-      count: Math.max(1, parseInt(formCount, 10) || 1),
-      audio: formAudio
-    };
-
-    setAdhkar(old => [item, ...old]);
-    clearForm();
-    setScreen('adhkarFolder');
-    Alert.alert('بریالي شو', 'ذکر ثبت شو.');
-  }
-
-  function deleteDhikr(id) {
-    Alert.alert('حذف کول', 'دا ذکر حذف شي؟', [
-      { text: 'نه', style: 'cancel' },
-      {
-        text: 'هو',
-        style: 'destructive',
-        onPress: () => {
-          setAdhkar(old => old.filter(item => item.id !== id));
-          setScreen('adhkarFolder');
-        }
-      }
-    ]);
-  }
-
-  function toggleFavorite(item) {
-    const exists = favorites.some(f => f.id === item.id);
-    setFavorites(old =>
-      exists
-        ? old.filter(f => f.id !== item.id)
-        : [...old, item]
-    );
-  }
+  // ==================================================
+  // 20 - د خوښې درسونه
+  // ==================================================
 
   function isFavorite(id) {
     return favorites.some(item => item.id === id);
   }
 
-  // Existing scholar library data is retained under its original storage key.
-  const oldKey = selectedScholar && selectedSection
-    ? `${selectedScholar}|${selectedSection}`
-    : '';
+  async function toggleFavorite(item) {
+    if (!item?.id) return;
 
-  const oldBooksForCategory = books[oldKey] || [];
+    let updated;
 
-  function addOldBook() {
-    if (!formTitle.trim()) {
-      Alert.alert('خبرتیا', 'د کتاب نوم ولیکه.');
+    if (isFavorite(item.id)) {
+      updated = favorites.filter(
+        favorite => favorite.id !== item.id
+      );
+    } else {
+      updated = [
+        ...favorites,
+        {
+          ...item,
+          savedAt: new Date().toISOString()
+        }
+      ];
+    }
+
+    await saveFavorites(updated);
+  }
+
+  // ==================================================
+  // 21 - د لمانځه محاسبه
+  // ==================================================
+
+  function getCalculationParams() {
+    switch (settings.calculationMethod) {
+      case 'UmmAlQura':
+        return CalculationMethod.UmmAlQura();
+
+      case 'MuslimWorldLeague':
+        return CalculationMethod.MuslimWorldLeague();
+
+      case 'Egyptian':
+        return CalculationMethod.Egyptian();
+
+      case 'NorthAmerica':
+        return CalculationMethod.NorthAmerica();
+
+      default:
+        return CalculationMethod.Karachi();
+    }
+  }
+
+  async function calculatePrayerTimes(latitude, longitude) {
+    try {
+      const coordinates = new Coordinates(
+        latitude,
+        longitude
+      );
+
+      const params = getCalculationParams();
+
+      params.madhab =
+        settings.madhab === 'Shafi'
+          ? Madhab.Shafi
+          : Madhab.Hanafi;
+
+      const date = new Date();
+
+      const times = new PrayerTimes(
+        coordinates,
+        date,
+        params
+      );
+
+      const adjustments = settings.prayerAdjustments || {};
+
+      function adjustTime(value, minutes) {
+        const result = new Date(value);
+        result.setMinutes(
+          result.getMinutes() + (minutes || 0)
+        );
+        return result;
+      }
+
+      const result = {
+        fajr: adjustTime(times.fajr, adjustments.fajr),
+        sunrise: adjustTime(times.sunrise, adjustments.sunrise),
+        dhuhr: adjustTime(times.dhuhr, adjustments.dhuhr),
+        asr: adjustTime(times.asr, adjustments.asr),
+        maghrib: adjustTime(times.maghrib, adjustments.maghrib),
+        isha: adjustTime(times.isha, adjustments.isha)
+      };
+
+      setPrayerTimes(result);
+      setPrayerDate(new Date());
+
+      return result;
+
+    } catch (error) {
+      Alert.alert('ستونزه', 'د لمانځه وختونه محاسبه نه شول.');
+      return null;
+    }
+  }
+
+  // ==================================================
+  // 22 - د موقعیت ترلاسه کول
+  // ==================================================
+
+  async function getPrayerLocation() {
+    try {
+      setLocationLoading(true);
+
+      const permission =
+        await Location.requestForegroundPermissionsAsync();
+
+      if (permission.status !== 'granted') {
+        Alert.alert(
+          'اجازه اړینه ده',
+          'د لمانځه د وختونو لپاره د موقعیت اجازه ورکړئ.'
+        );
+        return;
+      }
+
+      const location =
+        await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced
+        });
+
+      const latitude = location.coords.latitude;
+      const longitude = location.coords.longitude;
+
+      const address = await Location.reverseGeocodeAsync({
+        latitude,
+        longitude
+      });
+
+      const cityName =
+        address?.[0]?.city ||
+        address?.[0]?.district ||
+        address?.[0]?.region ||
+        '';
+
+      await updateSettings({
+        latitude,
+        longitude,
+        city: cityName
+      });
+
+      await calculatePrayerTimes(
+        latitude,
+        longitude
+      );
+
+    } catch (error) {
+      Alert.alert('ستونزه', 'موقعیت ترلاسه نه شو.');
+    } finally {
+      setLocationLoading(false);
+    }
+  }
+
+  async function refreshPrayerTimes() {
+    if (
+      settings.latitude !== null &&
+      settings.longitude !== null
+    ) {
+      await calculatePrayerTimes(
+        settings.latitude,
+        settings.longitude
+      );
+    } else {
+      await getPrayerLocation();
+    }
+  }
+
+  // ==================================================
+  // 23 - د خبرتیاوو اجازه
+  // ==================================================
+
+  async function requestNotificationPermission() {
+    try {
+      const permission =
+        await Notifications.requestPermissionsAsync();
+
+      if (!permission.granted) {
+        Alert.alert(
+          'اجازه اړینه ده',
+          'د خبرتیاوو لپاره اجازه فعاله کړئ.'
+        );
+        return false;
+      }
+
+      return true;
+
+    } catch (error) {
+      return false;
+    }
+  }
+
+  // ==================================================
+  // 24 - د خبرتیا اضافه کول
+  // ==================================================
+
+  async function addReminder() {
+    if (
+      !formTitle.trim() ||
+      !formDate.trim() ||
+      !formTime.trim()
+    ) {
+      Alert.alert(
+        'خبرتیا',
+        'د خبرتیا نوم، نېټه او وخت ولیکئ.'
+      );
       return;
     }
 
-    const newBook = {
-      id: makeId(),
-      title: formTitle,
-      chapters: [],
-      pdf: ''
-    };
+    const allowed =
+      await requestNotificationPermission();
 
-    setBooks(old => ({
-      ...old,
-      [oldKey]: [...(old[oldKey] || []), newBook]
-    }));
+    if (!allowed) return;
 
-    clearForm();
+    const dateTime = new Date(
+      `${formDate}T${formTime}:00`
+    );
+
+    if (
+      Number.isNaN(dateTime.getTime()) ||
+      dateTime <= new Date()
+    ) {
+      Alert.alert(
+        'ناسم وخت',
+        'راتلونکې نېټه او سم وخت ولیکئ.'
+      );
+      return;
+    }
+
+    try {
+      const notificationId =
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: 'میراث اسلام',
+            body: formTitle,
+            sound: true
+          },
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: dateTime
+          }
+        });
+
+      const newReminder = {
+        id: Date.now().toString(),
+        title: formTitle,
+        date: formDate,
+        time: formTime,
+        notificationId
+      };
+
+      await saveReminders([
+        newReminder,
+        ...reminders
+      ]);
+
+      clearForm();
+      setScreen('reminders');
+
+      Alert.alert('بریالی شو', 'خبرتیا ثبت شوه.');
+
+    } catch (error) {
+      Alert.alert('ستونزه', 'خبرتیا ثبت نه شوه.');
+    }
   }
 
-  function deleteOldBook(bookId) {
-    Alert.alert('حذف کول', 'دا کتاب حذف شي؟', [
+  async function deleteReminder(id) {
+    const reminder = reminders.find(
+      item => item.id === id
+    );
+
+    try {
+      if (reminder?.notificationId) {
+        await Notifications.cancelScheduledNotificationAsync(
+          reminder.notificationId
+        );
+      }
+
+      await saveReminders(
+        reminders.filter(item => item.id !== id)
+      );
+
+    } catch (error) {
+      Alert.alert('ستونزه', 'خبرتیا حذف نه شوه.');
+    }
+  }
+
+  // ==================================================
+  // 25 - د اذکارو سیستم
+  // ==================================================
+
+  async function addDhikr() {
+    if (!formTitle.trim() || !formText.trim()) {
+      Alert.alert(
+        'خبرتیا',
+        'د ذکر نوم او متن ولیکئ.'
+      );
+      return;
+    }
+
+    const newDhikr = {
+      id: Date.now().toString(),
+      title: formTitle.trim(),
+      text: formText.trim(),
+      translation: formDescription,
+      count: Number(formCount) || 1,
+      category: selectedFolder || 'عمومي اذکار',
+      createdAt: new Date().toISOString()
+    };
+
+    await saveAdhkar([
+      newDhikr,
+      ...adhkar
+    ]);
+
+    clearForm();
+    setScreen('adhkarFolder');
+  }
+
+  async function deleteDhikr(id) {
+    Alert.alert('حذف', 'دا ذکر حذف کړئ؟', [
       { text: 'نه', style: 'cancel' },
       {
         text: 'هو',
         style: 'destructive',
-        onPress: () => {
-          setBooks(old => ({
-            ...old,
-            [oldKey]: (old[oldKey] || []).filter(b => b.id !== bookId)
-          }))
+        onPress: async () => {
+          await saveAdhkar(
+            adhkar.filter(item => item.id !== id)
+          );
         }
       }
     ]);
   }
 
-  function addOldChapter(bookId, chapterTitle) {
-    if (!chapterTitle.trim()) return;
+  // ==================================================
+  // 26 - د علماوو کتابونه
+  // ==================================================
 
-    setBooks(old => ({
-      ...old,
-      [oldKey]: (old[oldKey] || []).map(book =>
-        book.id === bookId
-          ? {
-              ...book,
-              chapters: [
-                ...(book.chapters || []),
-                { id: makeId(), title: chapterTitle, lessons: [] }
-              ]
-            }
-          : book
-      )
-    }));
+  function getBookKey() {
+    return `${selectedScholar}|${selectedSection}`;
   }
 
-  function addOldLesson(bookId, chapterId, lessonTitle) {
-    if (!lessonTitle.trim()) return;
-
-    setBooks(old => ({
-      ...old,
-      [oldKey]: (old[oldKey] || []).map(book =>
-        book.id === bookId
-          ? {
-              ...book,
-              chapters: (book.chapters || []).map(chapter =>
-                chapter.id === chapterId
-                  ? {
-                      ...chapter,
-                      lessons: [
-                        ...(chapter.lessons || []),
-                        { id: makeId(), title: lessonTitle }
-                      ]
-                    }
-                  : chapter
-              )
-            }
-          : book
-      )
-    }));
+  function getOldBooks() {
+    return books[getBookKey()] || [];
   }
+
+  function openScholar(name) {
+    setSelectedScholar(name);
+    setSelectedSection('');
+    setScreen('scholar');
+  }
+
+  function openOldCategory(section) {
+    setSelectedSection(section);
+    setScreen('oldCategory');
+  }
+
+  function openOldBook(book) {
+    setSelectedItem(book);
+    setScreen('oldBook');
+  }
+
+  async function addOldBook() {
+    if (!formTitle.trim()) {
+      Alert.alert('خبرتیا', 'د کتاب نوم ولیکئ.');
+      return;
+    }
+
+    const key = getBookKey();
+    const current = books[key] || [];
+
+    const newBook = {
+      id: Date.now().toString(),
+      title: formTitle.trim(),
+      chapters: []
+    };
+
+    await saveBooks({
+      ...books,
+      [key]: [
+        ...current,
+        newBook
+      ]
+    });
+
+    clearForm();
+  }
+
+  async function deleteOldBook(bookId) {
+    Alert.alert('حذف', 'دا کتاب حذف کړئ؟', [
+      { text: 'نه', style: 'cancel' },
+      {
+        text: 'هو',
+        style: 'destructive',
+        onPress: async () => {
+          const key = getBookKey();
+
+          await saveBooks({
+            ...books,
+            [key]: (books[key] || []).filter(
+              item => item.id !== bookId
+            )
+          });
+        }
+      }
+    ]);
+  }
+
+  // ==================================================
+  // 27 - د کتاب څپرکي اضافه کول
+  // ==================================================
+
+  async function addOldChapter() {
+    if (!chapterName.trim() || !selectedItem) {
+      Alert.alert(
+        'خبرتیا',
+        'د څپرکي نوم ولیکئ.'
+      );
+      return;
+    }
+
+    const key = getBookKey();
+
+    const updatedBooks = (books[key] || []).map(book =>
+      book.id === selectedItem.id
+        ? {
+            ...book,
+            chapters: [
+              ...(book.chapters || []),
+              {
+                id: Date.now().toString(),
+                title: chapterName.trim(),
+                lessons: []
+              }
+            ]
+          }
+        : book
+    );
+
+    await saveBooks({
+      ...books,
+      [key]: updatedBooks
+    });
+
+    setSelectedItem(
+      updatedBooks.find(
+        book => book.id === selectedItem.id
+      )
+    );
+
+    setChapterName('');
+    setEditorType('');
+  }
+
+  // ==================================================
+  // 28 - د کتاب درس اضافه کول
+  // ==================================================
+
+  async function addOldLesson(chapterId) {
+    if (!lessonName.trim() || !selectedItem) {
+      Alert.alert(
+        'خبرتیا',
+        'د درس نوم ولیکئ.'
+      );
+      return;
+    }
+
+    const key = getBookKey();
+
+    const updatedBooks = (books[key] || []).map(book => {
+      if (book.id !== selectedItem.id) {
+        return book;
+      }
+
+      return {
+        ...book,
+        chapters: (book.chapters || []).map(chapter =>
+          chapter.id === chapterId
+            ? {
+                ...chapter,
+                lessons: [
+                  ...(chapter.lessons || []),
+                  {
+                    id: Date.now().toString(),
+                    title: lessonName.trim()
+                  }
+                ]
+              }
+            : chapter
+        )
+      };
+    });
+
+    await saveBooks({
+      ...books,
+      [key]: updatedBooks
+    });
+
+    setSelectedItem(
+      updatedBooks.find(
+        book => book.id === selectedItem.id
+      )
+    );
+
+    setLessonName('');
+    setEditorType('');
+  }
+
+  // ==================================================
+  // 29 - د کتاب څپرکي حذف
+  // ==================================================
+
+  async function deleteOldChapter(chapterId) {
+    if (!selectedItem) return;
+
+    const key = getBookKey();
+
+    const updatedBooks = (books[key] || []).map(book =>
+      book.id === selectedItem.id
+        ? {
+            ...book,
+            chapters: (book.chapters || []).filter(
+              chapter => chapter.id !== chapterId
+            )
+          }
+        : book
+    );
+
+    await saveBooks({
+      ...books,
+      [key]: updatedBooks
+    });
+
+    setSelectedItem(
+      updatedBooks.find(
+        book => book.id === selectedItem.id
+      )
+    );
+  }
+
+  // ==================================================
+  // 30 - د لټون سیستم
+  // ==================================================
+
+  function getSearchResults() {
+    const query = searchText.trim().toLowerCase();
+
+    if (!query) return [];
+
+    return globalItems.filter(item =>
+      `${item.title || ''} ${item.description || ''} ${item.text || ''} ${item.scholar || ''} ${item.section || ''}`
+        .toLowerCase()
+        .includes(query)
+    );
+  }
+
+  function openItem(item) {
+    setSelectedItem(item);
+    setScreen('itemDetails');
+  }
+
+  // ==================================================
+  // 31 - د علمي برخو پرانیستل
+  // ==================================================
+
+  function openSection(section) {
+    setSelectedSection(section);
+    setSelectedFolder('');
+    setScreen('section');
+  }
+
+  function openFolder(folder) {
+    setSelectedFolder(folder);
+    setScreen('sectionFolder');
+  }
+
+  function openAddLesson() {
+    clearForm();
+    setScreen('lessonEditor');
+  }
+
+  function getFolderItems() {
+    return globalItems.filter(item =>
+      item.section === selectedSection &&
+      item.folder === selectedFolder
+    );
+  }
+
+  // ==================================================
+  // 32 - د وخت ښودلو
+  // ==================================================
+
+  function formatTime(date) {
+    if (!date) return '--:--';
+
+    return new Date(date).toLocaleTimeString(
+      'en-US',
+      {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      }
+    );
+  }
+
+  // ==================================================
+  // 33 - د متن او کارتونو مرستندویه برخې
+  // ==================================================
+
+  function ActionCard({
+    title,
+    subtitle,
+    icon,
+    onPress
+  }) {
+    return (
+      <TouchableOpacity
+        style={styles.actionCard}
+        onPress={onPress}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.actionIcon}>
+          {icon}
+        </Text>
+
+        <Text style={styles.actionTitle}>
+          {title}
+        </Text>
+
+        {subtitle ? (
+          <Text style={styles.actionSubtitle}>
+            {subtitle}
+          </Text>
+        ) : null}
+      </TouchableOpacity>
+    );
+  }
+
+  function SectionTitle({
+    title,
+    action,
+    onAction
+  }) {
+    return (
+      <View style={styles.sectionTitleRow}>
+        <Text style={styles.sectionTitle}>
+          {title}
+        </Text>
+
+        {action ? (
+          <TouchableOpacity onPress={onAction}>
+            <Text style={styles.goldLink}>
+              {action}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+    );
+  }
+
+  function Field({
+    label,
+    value,
+    onChangeText,
+    placeholder,
+    multiline = false,
+    keyboardType = 'default'
+  }) {
+    return (
+      <View style={styles.fieldContainer}>
+        <Text style={styles.fieldLabel}>
+          {label}
+        </Text>
+
+        <TextInput
+          style={[
+            styles.input,
+            multiline && styles.multilineInput
+          ]}
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder || ''}
+          placeholderTextColor={COLORS.muted}
+          multiline={multiline}
+          textAlign="right"
+          keyboardType={keyboardType}
+        />
+      </View>
+    );
+  }
+
+  function GoldButton({
+    title,
+    onPress,
+    secondary = false
+  }) {
+    return (
+      <TouchableOpacity
+        style={[
+          styles.goldButton,
+          secondary && styles.secondaryButton
+        ]}
+        onPress={onPress}
+        activeOpacity={0.8}
+      >
+        <Text
+          style={[
+            styles.goldButtonText,
+            secondary && styles.secondaryButtonText
+          ]}
+        >
+          {title}
+        </Text>
+      </TouchableOpacity>
+    );
+  }
+
+  // ==================================================
+  // د لومړۍ برخې پای
+  // دوهمه برخه به له همدې ځایه اد
+  // ==================================================
+  // 34 - د سکرینونو اصلي ډیزاین
+  // ==================================================
+
+  if (loading) {
+    return (
+      <View style={styles.loadingScreen}>
+        <StatusBar
+          backgroundColor={COLORS.background}
+          barStyle="light-content"
+        />
+
+        <Text style={styles.loadingLogo}>میراث اسلام</Text>
+
+        <ActivityIndicator
+          size="large"
+          color={COLORS.gold}
+        />
+
+        <Text style={styles.loadingText}>
+          مهرباني وکړئ، لږ انتظار وکړئ
+        </Text>
+      </View>
+    );
+  }
+
+  // ==================================================
+  // 35 - د کورپاڼې سکرین
+  // ==================================================
+
   return (
     <View style={styles.container}>
-      <StatusBar backgroundColor={COLORS.background} barStyle="light-content" />
+      <StatusBar
+        backgroundColor={COLORS.background}
+        barStyle="light-content"
+      />
 
-      {!ready ? (
-        <View style={styles.loading}>
-          <ActivityIndicator size="large" color={COLORS.gold} />
-          <Text style={styles.loadingText}>مهرباني وکړئ، اپلیکیشن چمتو کېږي...</Text>
-        </View>
-      ) : (
-        <>
-          {screen !== 'home' && header(
-            screen === 'settings' ? 'تنظیمات' :
-            screen === 'scholars' ? 'د علماوو کتابتون' :
-            screen === 'scholar' ? 'د عالم کتابتون' :
-            screen === 'oldCategory' ? selectedSection :
-            screen === 'oldBook' ? (selectedItem?.title || 'کتاب') :
-            screen === 'section' ? selectedSection :
-            screen === 'sectionFolder' ? selectedFolder :
-            screen === 'itemDetails' ? (selectedItem?.title || 'معلومات') :
-            screen === 'notes' ? 'زما یادښتونه' :
-            screen === 'noteEditor' ? 'نوی یادښت' :
-            screen === 'reminders' ? 'د درسونو خبرتیاوې' :
-            screen === 'reminderEditor' ? 'نوې خبرتیا' :
-            screen === 'adhkarHome' ? 'اذکار' :
-            screen === 'adhkarFolder' ? selectedFolder :
-            screen === 'dhikrDetails' ? (selectedDhikr?.title || 'ذکر') :
-            screen === 'dhikrEditor' ? 'نوی ذکر' :
-            screen === 'prayer' ? 'د لمانځه وختونه' :
-            screen === 'search' ? 'لټون' :
-            screen === 'favorites' ? 'خوښې شوې برخې' : 'میراث اسلام'
-          )}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
 
+        {screen === 'home' && (
           <ScrollView
-            style={styles.scroll}
-            contentContainerStyle={styles.content}
-            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.homeContent}
           >
 
-            {/* HOME */}
-            {screen === 'home' && (
-              <>
-                <View style={styles.hero}>
-                  <Text style={styles.logo}>میراث اسلام</Text>
-                  <Text style={styles.heroSubtitle}>اسلامي علمي کتابتون</Text>
-                  <Text style={styles.heroLine}>
-                    د قرآن، حدیث، سیرت او اسلامي علومو خزانه
+            {/* سرلیک */}
+
+            <View style={styles.header}>
+              <View style={styles.headerDecoration}>
+                <Text style={styles.headerBismillah}>
+                  بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
+                </Text>
+
+                <Text style={styles.logoTitle}>
+                  میراث اسلام
+                </Text>
+
+                <Text style={styles.headerSubtitle}>
+                  د اسلامي علم، تاریخ او میراث کتابتون
+                </Text>
+
+                <View style={styles.headerLine} />
+
+                <Text style={styles.headerSmall}>
+                  قرآن • حدیث • سیرت • اسلامي علوم
+                </Text>
+              </View>
+            </View>
+
+            {/* د لمانځه وختونه */}
+
+            <View style={styles.prayerCard}>
+              <View style={styles.prayerHeader}>
+                <View>
+                  <Text style={styles.cardHeading}>
+                    د لمانځه وختونه
+                  </Text>
+
+                  <Text style={styles.smallMuted}>
+                    {settings.city || 'خپل موقعیت وټاکئ'}
                   </Text>
                 </View>
 
                 <TouchableOpacity
-                  style={styles.searchBox}
-                  onPress={() => setScreen('search')}
+                  onPress={refreshPrayerTimes}
+                  style={styles.refreshButton}
                 >
-                  <Text style={styles.searchPlaceholder}>⌕  کتابونه، درسونه او علما ولټوه...</Text>
+                  {locationLoading ? (
+                    <ActivityIndicator color={COLORS.gold} />
+                  ) : (
+                    <Text style={styles.refreshText}>
+                      ↻ تازه کول
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.prayerRow}
+              >
+                {PRAYERS.map(prayer => (
+                  <View
+                    key={prayer.key}
+                    style={styles.prayerItem}
+                  >
+                    <Text style={styles.prayerIcon}>
+                      {prayer.icon}
+                    </Text>
+
+                    <Text style={styles.prayerName}>
+                      {prayer.title}
+                    </Text>
+
+                    <Text style={styles.prayerTime}>
+                      {prayerTimes
+                        ? formatTime(prayerTimes[prayer.key])
+                        : '--:--'}
+                    </Text>
+                  </View>
+                ))}
+              </ScrollView>
+
+              <TouchableOpacity
+                onPress={() => setScreen('prayer')}
+                style={styles.prayerMore}
+              >
+                <Text style={styles.goldLink}>
+                  د لمانځه تنظیمات او معلومات
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* د علماوو کتابتون */}
+
+            <SectionTitle
+              title="د علماوو کتابتون"
+              action="ټول علما"
+              onAction={() => setScreen('scholars')}
+            />
+
+            <TouchableOpacity
+              style={styles.mainLibraryCard}
+              onPress={() => setScreen('scholars')}
+              activeOpacity={0.85}
+            >
+              <View style={styles.libraryDecoration}>
+                <Text style={styles.libraryIcon}>۞</Text>
+
+                <Text style={styles.libraryTitle}>
+                  د علماوو علمي میراث
+                </Text>
+
+                <Text style={styles.libraryDescription}>
+                  بیانونه، کتابونه، تفسیرونه او علمي درسونه
+                </Text>
+
+                <Text style={styles.libraryButton}>
+                  کتابتون ته داخل شئ ←
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* شپږ علمي برخې */}
+
+            <SectionTitle title="علمي برخې" />
+
+            <View style={styles.categoryGrid}>
+              {SECTIONS.map((section, index) => {
+                const icons = [
+                  '۞',
+                  '◈',
+                  '⌘',
+                  '✧',
+                  '؟',
+                  '▤'
+                ];
+
+                return (
+                  <TouchableOpacity
+                    key={section}
+                    style={styles.categoryCard}
+                    onPress={() => openSection(section)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.categoryIcon}>
+                      {icons[index]}
+                    </Text>
+
+                    <Text style={styles.categoryTitle}>
+                      {section}
+                    </Text>
+
+                    <Text style={styles.categoryArrow}>
+                      ←
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* چټک لاسرسی */}
+
+            <SectionTitle title="چټک لاسرسی" />
+
+            <View style={styles.quickGrid}>
+              <ActionCard
+                title="زما نوټونه"
+                subtitle="خپل یادښتونه"
+                icon="✎"
+                onPress={() => setScreen('notes')}
+              />
+
+              <ActionCard
+                title="خوښ شوي"
+                subtitle="زما غوره درسونه"
+                icon="♡"
+                onPress={() => setScreen('favorites')}
+              />
+
+              <ActionCard
+                title="د سهار او ماښام اذکار"
+                subtitle="ورځني اذکار"
+                icon="۞"
+                onPress={() => setScreen('adhkarHome')}
+              />
+
+              <ActionCard
+                title="خبرتیاوې"
+                subtitle="د درسونو یادونې"
+                icon="♧"
+                onPress={() => setScreen('reminders')}
+              />
+
+              <ActionCard
+                title="لټون"
+                subtitle="کتابونه او درسونه"
+                icon="⌕"
+                onPress={() => setScreen('search')}
+              />
+
+              <ActionCard
+                title="تنظیمات"
+                subtitle="د اپلیکیشن تنظیمات"
+                icon="⚙"
+                onPress={() => setScreen('settings')}
+              />
+            </View>
+
+            {/* وروستي درسونه */}
+
+            <SectionTitle
+              title="وروستي درسونه"
+              action="ټول وګورئ"
+              onAction={() => setScreen('search')}
+            />
+
+            {globalItems.slice(0, 5).map(item => (
+              <TouchableOpacity
+                key={item.id}
+                style={styles.lessonCard}
+                onPress={() => openItem(item)}
+              >
+                <View style={styles.lessonTextBox}>
+                  <Text style={styles.lessonTitle}>
+                    {item.title}
+                  </Text>
+
+                  <Text style={styles.lessonDescription}>
+                    {item.scholar || item.section || 'عمومي درس'}
+                  </Text>
+                </View>
+
+                <Text style={styles.lessonArrow}>‹</Text>
+              </TouchableOpacity>
+            ))}
+
+            {globalItems.length === 0 && (
+              <Text style={styles.emptyText}>
+                تر اوسه درسونه نه دي اضافه شوي.
+              </Text>
+            )}
+
+            {/* د کتابتون لاندې برخه */}
+
+            <View style={styles.footer}>
+              <Text style={styles.footerLogo}>
+                میراث اسلام
+              </Text>
+
+              <Text style={styles.footerText}>
+                د علم، دعوت او اسلامي میراث خدمت
+              </Text>
+
+              <Text style={styles.footerSmall}>
+                ټول حقوق خوندي دي
+              </Text>
+            </View>
+
+          </ScrollView>
+        )}
+
+        {/* ==================================================
+            36 - د علماوو لست
+        ================================================== */}
+
+        {screen === 'scholars' && (
+          <ScrollView contentContainerStyle={styles.pageContent}>
+            <PageHeader
+              title="د علماوو کتابتون"
+              subtitle="د علماوو علمي آثار او درسونه"
+              onBack={goBack}
+            />
+
+            {SCHOLARS.map((scholar, index) => (
+              <TouchableOpacity
+                key={scholar}
+                style={styles.scholarCard}
+                onPress={() => openScholar(scholar)}
+              >
+                <Text style={styles.scholarNumber}>
+                  {String(index + 1).padStart(2, '0')}
+                </Text>
+
+                <View style={styles.flexText}>
+                  <Text style={styles.scholarName}>
+                    {scholar}
+                  </Text>
+
+                  <Text style={styles.smallMuted}>
+                    کتابونه او علمي بیانونه
+                  </Text>
+                </View>
+
+                <Text style={styles.lessonArrow}>‹</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+
+        {/* ==================================================
+            37 - د یوه عالم سکرین
+        ================================================== */}
+
+        {screen === 'scholar' && (
+          <ScrollView contentContainerStyle={styles.pageContent}>
+            <PageHeader
+              title="د عالم کتابتون"
+              subtitle={selectedScholar}
+              onBack={goBack}
+            />
+
+            {SECTIONS.map(section => (
+              <TouchableOpacity
+                key={section}
+                style={styles.listCard}
+                onPress={() => openOldCategory(section)}
+              >
+                <Text style={styles.listCardIcon}>▤</Text>
+
+                <Text style={styles.listCardTitle}>
+                  {section}
+                </Text>
+
+                <Text style={styles.lessonArrow}>‹</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+
+        {/* ==================================================
+            38 - د عالم د کتابونو برخه
+        ================================================== */}
+
+        {screen === 'oldCategory' && (
+          <ScrollView contentContainerStyle={styles.pageContent}>
+            <PageHeader
+              title={selectedSection}
+              subtitle={selectedScholar}
+              onBack={goBack}
+            />
+
+            <Field
+              label="د نوي کتاب نوم"
+              value={formTitle}
+              onChangeText={setFormTitle}
+              placeholder="د کتاب نوم ولیکئ"
+            />
+
+            <GoldButton
+              title="＋ نوی کتاب اضافه کړئ"
+              onPress={addOldBook}
+            />
+
+            {getOldBooks().map(book => (
+              <View
+                key={book.id}
+                style={styles.listCard}
+              >
+                <TouchableOpacity
+                  style={styles.flexText}
+                  onPress={() => openOldBook(book)}
+                >
+                  <Text style={styles.listCardTitle}>
+                    {book.title}
+                  </Text>
+
+                  <Text style={styles.smallMuted}>
+                    {(book.chapters || []).length} څپرکي
+                  </Text>
                 </TouchableOpacity>
 
-                <Text style={styles.sectionHeading}>اصلي برخې</Text>
-
-                {card('د علماوو کتابتون', 'د پنځو علماوو علمي آثار او درسونه', () => setScreen('scholars'), '۞')}
-                {card('قرآن کریم', 'تفسیر، ترجمه، کتابونه او درسونه', () => openSection(SECTIONS[0]), '﷽')}
-                {card('حدیث شریف', 'د احادیثو کتابونه او درسونه', () => openSection(SECTIONS[1]), '۞')}
-                {card('تاریخ او سیرت', 'د انبیاوو، صحابه‌وو او اسلامي تاریخ', () => openSection(SECTIONS[2]), '◈')}
-                {card('اسلامي علوم او فنون', 'فقه، عقیده، اصول، نحو او نور علوم', () => openSection(SECTIONS[3]), '✧')}
-                {card('سوالونه او ځوابونه', 'علمي پوښتنې او مستند ځوابونه', () => openSection(SECTIONS[4]), '؟')}
-                {card('عمومي درسونه او کتابونه', 'نورې علمي لیکنې او ګټور درسونه', () => openSection(SECTIONS[5]), '▤')}
-
-                <Text style={styles.sectionHeading}>شخصي او ورځني خدمتونه</Text>
-                {card('زما یادښتونه', 'خپل علمي یادښتونه وساته', () => setScreen('notes'), '✎')}
-                {card('د درسونو خبرتیاوې', 'د بیانونو او درسونو وختونه وټاکه', () => setScreen('reminders'), '◷')}
-                {card('سهار او ماښام اذکار', 'دعاوې، ژباړه او د حدیث تخریج', () => setScreen('adhkarHome'), '۞')}
-                {card('د لمانځه وختونه', 'د خپل ځای مطابق د لمانځه وختونه', () => setScreen('prayer'), '☾')}
-                {card('خوښې شوې برخې', 'خپل غوره شوي کتابونه او درسونه', () => setScreen('favorites'), '★')}
-                {card('تنظیمات', 'ژبه، فونټ، رنګونه او د لمانځه طریقه', () => setScreen('settings'), '⚙')}
-
-                <View style={styles.footer}>
-                  <Text style={styles.footerTitle}>میراث اسلام</Text>
-                  <Text style={styles.footerText}>الله تعالی دې دا علمي هڅه قبوله کړي</Text>
-                </View>
-              </>
-            )}
-
-            {/* SCHOLARS */}
-            {screen === 'scholars' && (
-              <>
-                <Text style={styles.introText}>د عالم د کتابتون د پرانیستلو لپاره نوم وټاکه.</Text>
-                {SCHOLARS.map((scholar, index) =>
-                  card(scholar, `د عالم علمي آثار او درسونه`, () => openScholar(scholar), '۞')
-                )}
-              </>
-            )}
-
-            {screen === 'scholar' && (
-              <>
-                <Text style={styles.introText}>{selectedScholar}</Text>
-                {[
-                  'د شیخ تعارف او علمي آثار',
-                  'د قرآن کریم تفسیر او ترجمه',
-                  'د احادیثو درسونه',
-                  'د تاریخ درسونه',
-                  'د فنونو درسونه',
-                  'د جمعې او عام خطبات',
-                  'د سوالات او جوابات'
-                ].map(category =>
-                  card(category, 'کتابونه او درسونه', () => {
-                    setSelectedSection(category);
-                    setScreen('oldCategory');
-                  }, '▤')
-                )}
-              </>
-            )}
-
-            {/* OLD SCHOLAR LIBRARY */}
-            {screen === 'oldCategory' && (
-              <>
-                <Text style={styles.introText}>
-                  {selectedScholar}
-                </Text>
-                <View style={styles.panel}>
-                  <Text style={styles.panelTitle}>نوی کتاب ورزیات کړه</Text>
-                  {field('د کتاب نوم', formTitle, setFormTitle, 'د کتاب نوم ولیکه')}
-                  {smallButton('＋ کتاب ثبت کړه', addOldBook)}
-                </View>
-
-                {oldBooksForCategory.map(book =>
-                  card(book.title, `${(book.chapters || []).length} څپرکي`, () => {
-                    setSelectedItem(book);
-                    setScreen('oldBook');
-                  }, '▤')
-                )}
-
-                {oldBooksForCategory.length === 0 && (
-                  <Text style={styles.emptyText}>تر اوسه کتاب نه دی ثبت شوی.</Text>
-                )}
-              </>
-            )}
-
-            {screen === 'oldBook' && selectedItem && (
-              <>
-                <View style={styles.panel}>
-                  <Text style={styles.panelTitle}>{selectedItem.title}</Text>
-                  <Text style={styles.mutedText}>د کتاب څپرکي او درسونه</Text>
-                  {smallButton('＋ نوی څپرکی', () => {
-                    Alert.prompt
-                      ? Alert.prompt('نوی څپرکی', 'د څپرکي نوم ولیکه', value => {
-                          addOldChapter(selectedItem.id, value || '');
-                          setSelectedItem(old => ({
-                            ...old,
-                            chapters: [
-                              ...(old.chapters || []),
-                              { id: makeId(), title: value || '', lessons: [] }
-                            ]
-                          }));
-                        })
-                      : Alert.alert('یادونه', 'د څپرکي د نوم لپاره لاندې د کتابتون د ادارې برخه وکاروه.');
-                  })}
-                  {smallButton('حذف کتاب', () => deleteOldBook(selectedItem.id), COLORS.red)}
-                </View>
-
-                {(selectedItem.chapters || []).map(chapter => (
-                  <View style={styles.panel} key={chapter.id}>
-                    <Text style={styles.panelTitle}>{chapter.title}</Text>
-                    {(chapter.lessons || []).map(lesson => (
-                      <Text style={styles.listText} key={lesson.id}>• {lesson.title}</Text>
-                    ))}
-                    {smallButton('＋ نوی درس', () => {
-                      if (Platform.OS === 'ios' && Alert.prompt) {
-                        Alert.prompt('نوی درس', 'د درس نوم ولیکه', value => {
-                          addOldLesson(selectedItem.id, chapter.id, value || '');
-                        });
-                      } else {
-                        Alert.alert('یادونه', 'د دې برخې د درسونو د زیاتولو فورم په راتلونکې نسخه کې پراخېدای شي.');
-                      }
-                    })}
-                  </View>
-                ))}
-              </>
-            )}
-
-            {/* GLOBAL SECTIONS */}
-            {screen === 'section' && (
-              <>
-                <Text style={styles.introText}>
-                  {selectedSection} — د ټولو علماوو ګډ علمي کتابتون
-                </Text>
-                {card('کتابونه', 'تفسیرونه، ژباړې، PDF او نور کتابونه', () => {
-                  setSelectedFolder('Books');
-                  setScreen('sectionFolder');
-                }, '▤')}
-                {card('درسونه', 'غږیز او لیکلي درسونه د ټولو علماوو', () => {
-                  setSelectedFolder('Lessons');
-                  setScreen('sectionFolder');
-                }, '♫')}
-              </>
-            )}
-
-            {screen === 'sectionFolder' && (
-              <>
-                <View style={styles.panel}>
-                  <Text style={styles.panelTitle}>نوی معلومات ورزیات کړه</Text>
-                  {field('د کتاب یا درس نوم', formTitle, setFormTitle, 'نوم ولیکه')}
-                  <Text style={styles.fieldLabel}>عالم وټاکه</Text>
-                  {SCHOLARS.map(scholar => (
-                    <TouchableOpacity
-                      key={scholar}
-                      style={[styles.choice, formScholar === scholar && styles.choiceActive]}
-                      onPress={() => setFormScholar(scholar)}
-                    >
-                      <Text style={styles.choiceText}>
-                        {formScholar === scholar ? '✓ ' : '○ '}{scholar}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                  {field('تفصیل، متن یا د PDF فایل پته', formText, setFormText, 'د کتاب یا درس معلومات')}
-                  {smallButton('د PDF فایل ټاکل', pickPDF)}
-                  {smallButton('غږیز فایل ټاکل', pickAudio)}
-                  {!!formAudio && <Text style={styles.mutedText}>غږیز فایل ټاکل شوی دی.</Text>}
-                  {smallButton('＋ ثبتول', addGlobalItem)}
-                </View>
-
-                <Text style={styles.sectionHeading}>ثبت شوي معلومات</Text>
-                {getSectionItems(selectedSection, selectedFolder).map(item =>
-                  <View key={item.id} style={styles.panel}>
-                    <TouchableOpacity onPress={() => {
-                      setSelectedItem(item);
-                      setScreen('itemDetails');
-                    }}>
-                      <Text style={styles.panelTitle}>{item.title}</Text>
-                      <Text style={styles.mutedText}>{item.scholar}</Text>
-                    </TouchableOpacity>
-                    <View style={styles.buttonRow}>
-                      {smallButton('کتل', () => {
-                        setSelectedItem(item);
-                        setScreen('itemDetails');
-                      })}
-                      {smallButton('★', () => toggleFavorite(item), COLORS.card2)}
-                      {smallButton('شریکول', () => shareText(item.title, item.text))}
-                    </View>
-                  </View>
-                )}
-
-                {getSectionItems(selectedSection, selectedFolder).length === 0 && (
-                  <Text style={styles.emptyText}>تر اوسه معلومات نه دي ثبت شوي.</Text>
-                )}
-              </>
-            )}
-
-            {screen === 'itemDetails' && selectedItem && (
-              <View style={styles.panel}>
-                <Text style={styles.panelTitle}>{selectedItem.title}</Text>
-                <Text style={styles.mutedText}>لیکوال / عالم: {selectedItem.scholar}</Text>
-                <Text style={styles.detailText}>{selectedItem.text || 'تفصیل نه دی لیکل شوی.'}</Text>
-                <View style={styles.buttonRow}>
-                  {smallButton('شریکول', () => shareText(selectedItem.title, selectedItem.text))}
-                  {smallButton(
-                    isFavorite(selectedItem.id) ? 'له خوښو لرې کول' : '★ خوښې ته زیاتول',
-                    () => toggleFavorite(selectedItem),
-                    COLORS.card2
-                  )}
-                  {smallButton('حذف', () => deleteGlobalItem(selectedItem.id), COLORS.red)}
-                </View>
-                {!!selectedItem.audio && (
-                  <Text style={styles.mutedText}>
-                    غږیز فایل ثبت دی؛ د غږ اورېدو ځانګړی پلیر په دې نسخه کې نشته.
-                  </Text>
-                )}
+                <TouchableOpacity
+                  onPress={() => deleteOldBook(book.id)}
+                >
+                  <Text style={styles.deleteIcon}>حذف</Text>
+                </TouchableOpacity>
               </View>
-            )}
+            ))}
 
-            {/* NOTES */}
-            {screen === 'notes' && (
-              <>
-                {smallButton('＋ نوی یادښت', () => {
-                  clearForm();
-                  setScreen('noteEditor');
-                })}
-                {notes.map(note => (
-                  <View style={styles.panel} key={note.id}>
-                    <Text style={styles.panelTitle}>{note.title}</Text>
-                    <Text style={styles.detailText}>{note.text}</Text>
-                    <Text style={styles.mutedText}>{note.date}</Text>
-                    <View style={styles.buttonRow}>
-                      {smallButton('شریکول', () => shareText(note.title, note.text))}
-                      {smallButton('حذف', () => deleteNote(note.id), COLORS.red)}
-                    </View>
-                  </View>
-                ))}
-                {notes.length === 0 && <Text style={styles.emptyText}>تر اوسه یادښت نشته.</Text>}
-              </>
+            {getOldBooks().length === 0 && (
+              <Text style={styles.emptyText}>
+                تر اوسه کتاب نه دی اضافه شوی.
+              </Text>
             )}
+          </ScrollView>
+        )}
 
-            {screen === 'noteEditor' && (
-              <View style={styles.panel}>
-                {field('د یادښت سرلیک', formTitle, setFormTitle, 'سرلیک')}
-                {field('د یادښت متن', formText, setFormText, 'خپل یادښت ولیکه')}
-                {smallButton('یادښت خوندي کړه', addNote)}
-              </View>
-            )}
+        {/* ==================================================
+            39 - د یوه کتاب دننه
+        ================================================== */}
 
-            {/* REMINDERS */}
-            {screen === 'reminders' && (
-              <>
-                {smallButton('＋ نوې خبرتیا', () => {
-                  clearForm();
-                  setScreen('reminderEditor');
-                })}
-                {reminders.map(item => (
-                  <View style={styles.panel} key={item.id}>
-                    <Text style={styles.panelTitle}>{item.title}</Text>
-                    <Text style={styles.detailText}>{item.text}</Text>
-                    <Text style={styles.mutedText}>{item.date} — {item.time}</Text>
-                    {smallButton('خبرتیا حذف کړه', () => deleteReminder(item), COLORS.red)}
-                  </View>
-                ))}
-                {reminders.length === 0 && <Text style={styles.emptyText}>خبرتیا نه ده جوړه شوې.</Text>}
-              </>
-            )}
+        {screen === 'oldBook' && (
+          <ScrollView contentContainerStyle={styles.pageContent}>
+            <PageHeader
+              title={selectedItem?.title || 'کتاب'}
+              subtitle="څپرکي او درسونه"
+              onBack={goBack}
+            />
 
-            {screen === 'reminderEditor' && (
-              <View style={styles.panel}>
-                {field('د درس نوم', formTitle, setFormTitle, 'د بیان یا درس نوم')}
-                {field('د خبرتیا متن', formText, setFormText, 'اختیاري تفصیل')}
-                {field('نېټه (YYYY-MM-DD)', formDate, setFormDate, '2026-12-25')}
-                {field('وخت (24 ساعته)', formTime, setFormTime, '18:30')}
-                {smallButton('خبرتیا ثبت کړه', addReminder)}
-                <Text style={styles.mutedText}>
-                  د خبرتیا لپاره د موبایل د Notifications اجازه اړینه ده.
-                </Text>
-              </View>
-            )}
+            <View style={styles.formCard}>
+              <Text style={styles.cardHeading}>
+                نوی څپرکی
+              </Text>
 
-            {/* ADHKAR */}
-            {screen === 'adhkarHome' && (
-              <>
-                {card('د سهار اذکار', 'د سهار دعاوې او اذکار', () => {
-                  setSelectedFolder('سهار');
-                  setScreen('adhkarFolder');
-                }, '☀')}
-                {card('د ماښام اذکار', 'د ماښام دعاوې او اذکار', () => {
-                  setSelectedFolder('ماښام');
-                  setScreen('adhkarFolder');
-                }, '☾')}
-              </>
-            )}
+              <Field
+                label="د څپرکي نوم"
+                value={chapterName}
+                onChangeText={setChapterName}
+                placeholder="د څپرکي نوم ولیکئ"
+              />
 
-            {screen === 'adhkarFolder' && (
-              <>
-                {smallButton('＋ نوی ذکر ورزیات کړه', () => {
-                  clearForm();
-                  setScreen('dhikrEditor');
-                })}
-                {adhkar.filter(item => item.folder === selectedFolder).map(item =>
-                  card(item.title, `تکرار: ${item.count} ځله`, () => {
-                    setSelectedDhikr(item);
-                    setScreen('dhikrDetails');
-                  }, '۞')
-                )}
-                {adhkar.filter(item => item.folder === selectedFolder).length === 0 && (
-                  <Text style={styles.emptyText}>تر اوسه ذکر نه دی ثبت شوی.</Text>
-                )}
-              </>
-            )}
+              <GoldButton
+                title="＋ څپرکی اضافه کړئ"
+                onPress={addOldChapter}
+              />
+            </View>
 
-            {screen === 'dhikrEditor' && (
-              <View style={styles.panel}>
-                <Text style={styles.fieldLabel}>د ذکر برخه</Text>
-                <View style={styles.buttonRow}>
-                  {['سهار', 'ماښام'].map(folder => (
-                    <TouchableOpacity
-                      key={folder}
-                      style={[styles.choice, selectedFolder === folder && styles.choiceActive]}
-                      onPress={() => setSelectedFolder(folder)}
-                    >
-                      <Text style={styles.choiceText}>{folder}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                {field('د ذکر نوم', formTitle, setFormTitle, 'د ذکر نوم')}
-                {field('عربي متن', formText, setFormText, 'عربي دعا ولیکه')}
-                {field('پښتو ژباړه', formTranslation, setFormTranslation, 'ژباړه ولیکه')}
-                {field('د حدیث تخریج او سرچینه', formSource, setFormSource, 'کتاب، حدیث شمېره او درجه')}
-                {field('د تکرار شمېر', formCount, setFormCount, '۳')}
-                {smallButton('غږیز فایل ټاکل', pickAudio)}
-                {smallButton('ذکر خوندي کړه', addDhikr)}
-              </View>
-            )}
-
-            {screen === 'dhikrDetails' && selectedDhikr && (
-              <View style={styles.panel}>
-                <Text style={styles.panelTitle}>{selectedDhikr.title}</Text>
-                <Text style={styles.arabicText}>{selectedDhikr.arabic}</Text>
-                <Text style={styles.fieldLabel}>ژباړه</Text>
-                <Text style={styles.detailText}>{selectedDhikr.translation || 'ژباړه نه ده ثبت شوې.'}</Text>
-                <Text style={styles.fieldLabel}>تکرار</Text>
-                <Text style={styles.detailText}>{selectedDhikr.count} ځله</Text>
-                <Text style={styles.fieldLabel}>تخریج او سرچینه</Text>
-                <Text style={styles.detailText}>{selectedDhikr.source || 'سرچینه نه ده ثبت شوې.'}</Text>
-                <View style={styles.buttonRow}>
-                  {smallButton('شریکول', () => shareText(selectedDhikr.title,
-                    `${selectedDhikr.arabic}\n${selectedDhikr.translation}\n${selectedDhikr.source}`))}
-                  {smallButton('حذف', () => deleteDhikr(selectedDhikr.id), COLORS.red)}
-                </View>
-              </View>
-            )}
-
-            {/* PRAYER TIMES */}
-            {screen === 'prayer' && (
-              <>
-                <View style={styles.panel}>
-                  <Text style={styles.panelTitle}>د لمانځه وختونه</Text>
-                  <Text style={styles.mutedText}>
-                    نېټه: {prayerDate || new Date().toLocaleDateString()}
+            {(selectedItem?.chapters || []).map((chapter, index) => (
+              <View
+                key={chapter.id}
+                style={styles.chapterCard}
+              >
+                <View style={styles.chapterHeader}>
+                  <Text style={styles.chapterTitle}>
+                    {index + 1}. {chapter.title}
                   </Text>
 
-                  {[
-                    ['فجر', 'fajr'],
-                    ['لمر خاته', 'sunrise'],
-                    ['ماسپښین', 'dhuhr'],
-                    ['مازدیګر', 'asr'],
-                    ['ماښام', 'maghrib'],
-                    ['ماخوستن', 'isha']
-                  ].map(([label, key]) => (
-                    <View style={styles.prayerRow} key={key}>
-                      <Text style={styles.prayerName}>{label}</Text>
-                      <Text style={styles.prayerTime}>{prayerTimes?.[key] || '--:--'}</Text>
-                    </View>
-                  ))}
-
-                  <Text style={styles.mutedText}>
-                    د وختونو د تازه کولو لپاره د موبایل موقعیت ته اجازه ورکړه.
-                  </Text>
                   <TouchableOpacity
-                    style={styles.mainButton}
-                    onPress={calculatePrayerTimes}
-                    disabled={loadingPrayer}
+                    onPress={() => deleteOldChapter(chapter.id)}
                   >
-                    {loadingPrayer
-                      ? <ActivityIndicator color={COLORS.white} />
-                      : <Text style={styles.mainButtonText}>د ځای له مخې وختونه تازه کړه</Text>}
+                    <Text style={styles.deleteIcon}>حذف</Text>
                   </TouchableOpacity>
                 </View>
 
-                <View style={styles.panel}>
-                  <Text style={styles.panelTitle}>د وختونو د محاسبې طریقه</Text>
-                  {CALC_METHODS.map(method => (
-                    <TouchableOpacity
-                      key={method.value}
-                      style={[styles.choice, settings.calculationMethod === method.value && styles.choiceActive]}
-                      onPress={() => updateSetting('calculationMethod', method.value)}
-                    >
-                      <Text style={styles.choiceText}>
-                        {settings.calculationMethod === method.value ? '✓ ' : '○ '}
-                        {method.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-
-                  <Text style={styles.fieldLabel}>د عصر د لمانځه طریقه</Text>
-                  {['Hanafi', 'Shafi'].map(value => (
-                    <TouchableOpacity
-                      key={value}
-                      style={[styles.choice, settings.madhab === value && styles.choiceActive]}
-                      onPress={() => updateSetting('madhab', value)}
-                    >
-                      <Text style={styles.choiceText}>
-                        {settings.madhab === value ? '✓ ' : '○ '}
-                        {value === 'Hanafi' ? 'حنفي' : 'شافعي، مالکي او حنبلي'}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                <View style={styles.panel}>
-                  <Text style={styles.panelTitle}>د وختونو دقیق تنظیم (+ یا - دقیقې)</Text>
-                  {[
-                    ['فجر', 'fajr'],
-                    ['لمر خاته', 'sunrise'],
-                    ['ماسپښین', 'dhuhr'],
-                    ['مازدیګر', 'asr'],
-                    ['ماښام', 'maghrib'],
-                    ['ماخوستن', 'isha']
-                  ].map(([label, key]) => (
-                    <View style={styles.adjustRow} key={key}>
-                      <Text style={styles.adjustLabel}>{label}</Text>
-                      <TextInput
-                        style={styles.adjustInput}
-                        keyboardType="numeric"
-                        value={String(settings.prayerAdjustments?.[key] ?? 0)}
-                        onChangeText={value => updatePrayerAdjustment(key, value)}
-                      />
-                    </View>
-                  ))}
-                </View>
-              </>
-            )}
-
-            {/* SETTINGS */}
-            {screen === 'settings' && (
-              <>
-                <View style={styles.panel}>
-                  <Text style={styles.panelTitle}>د اپلیکیشن ژبه</Text>
-                  {LANGUAGES.map(language => (
-                    <TouchableOpacity
-                      key={language}
-                      style={[styles.choice, settings.language === language && styles.choiceActive]}
-                      onPress={() => updateSetting('language', language)}
-                    >
-                      <Text style={styles.choiceText}>
-                        {settings.language === language ? '✓ ' : '○ '}{language}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                  <Text style={styles.mutedText}>
-                    یادونه: د ژبې ټاکل خوندي کېږي؛ د اپلیکیشن د ټولو لیکنو بشپړه ژباړه لا جلا کار غواړي.
-                  </Text>
-                </View>
-
-                <View style={styles.panel}>
-                  <Text style={styles.panelTitle}>د لیکلو فونټ</Text>
-                  {[
-                    'sans-serif',
-                    'serif',
-                    'sans-serif-medium',
-                    'sans-serif-condensed',
-                    'sans-serif-light',
-                    'monospace'
-                  ].map(font => (
-                    <TouchableOpacity
-                      key={font}
-                      style={[styles.choice, settings.fontFamily === font && styles.choiceActive]}
-                      onPress={() => updateSetting('fontFamily', font)}
-                    >
-                      <Text style={[styles.choiceText, { fontFamily: font }]}>
-                        {settings.fontFamily === font ? '✓ ' : '○ '}{font}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                  <Text style={styles.mutedText}>
-                    د ځانګړو پښتو، عربي او نستعلیق فونټونو لپاره د فونټ فایلونه باید جلا اپلیکیشن ته ورزیات شي.
-                  </Text>
-                </View>
-
-                <View style={styles.panel}>
-                  <Text style={styles.panelTitle}>د لیکنو رنګونه</Text>
-                  {[
-                    ['طلایي', '#D6B56D'],
-                    ['سپین', '#F5F0E4'],
-                    ['شین', '#8DBB91'],
-                    ['روښانه طلایي', '#F0DDAA']
-                  ].map(([label, color]) => (
-                    <TouchableOpacity
-                      key={color}
-                      style={styles.choice}
-                      onPress={() => updateSetting('textColor', color)}
-                    >
-                      <Text style={[styles.choiceText, { color }]}>
-                        {label} {settings.textColor === color ? '✓' : ''}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                <View style={styles.panel}>
-                  <Text style={styles.panelTitle}>د خبرتیاوو اجازه</Text>
-                  <View style={styles.switchRow}>
-                    <Text style={styles.choiceText}>خبرتیاوې فعالې کړه</Text>
-                    <Switch
-                      value={!!settings.notificationsEnabled}
-                      onValueChange={async value => {
-                        if (value) await enableNotifications();
-                        else updateSetting('notificationsEnabled', false);
-                      }}
-                      trackColor={{ true: COLORS.green, false: COLORS.muted }}
-                      thumbColor={COLORS.gold}
-                    />
+                {(chapter.lessons || []).map((lesson, lessonIndex) => (
+                  <View
+                    key={lesson.id}
+                    style={styles.lessonRow}
+                  >
+                    <Text style={styles.lessonTitle}>
+                      {lessonIndex + 1}. {lesson.title}
+                    </Text>
                   </View>
-                </View>
+                ))}
 
-                <View style={styles.panel}>
-                  <Text style={styles.panelTitle}>د معلوماتو ساتنه</Text>
-                  <Text style={styles.mutedText}>
-                    کتابونه، یادښتونه، اذکار او تنظیمات د موبایل په داخلي ذخیره کې ساتل کېږي.
+                <Field
+                  label="د نوي درس نوم"
+                  value={editorType === chapter.id ? lessonName : ''}
+                  onChangeText={value => {
+                    setEditorType(chapter.id);
+                    setLessonName(value);
+                  }}
+                  placeholder="د درس نوم ولیکئ"
+                />
+
+                <GoldButton
+                  title="＋ درس اضافه کړئ"
+                  secondary
+                  onPress={() => {
+                    setSelectedFolder(chapter.id);
+                    addOldLesson(chapter.id);
+                  }}
+                />
+              </View>
+            ))}
+          </ScrollView>
+        )}
+
+        {/* ==================================================
+            40 - علمي برخې
+        ================================================== */}
+
+        {screen === 'section' && (
+          <ScrollView contentContainerStyle={styles.pageContent}>
+            <PageHeader
+              title={selectedSection}
+              subtitle="د زده کړې برخې"
+              onBack={goBack}
+            />
+
+            {['تفسیر', 'ژباړه', 'بیانونه', 'کتابونه', 'نور درسونه'].map(
+              folder => (
+                <TouchableOpacity
+                  key={folder}
+                  style={styles.listCard}
+                  onPress={() => openFolder(folder)}
+                >
+                  <Text style={styles.listCardIcon}>▤</Text>
+
+                  <Text style={styles.listCardTitle}>
+                    {folder}
+                  </Text>
+
+                  <Text style={styles.lessonArrow}>‹</Text>
+                </TouchableOpacity>
+              )
+            )}
+          </ScrollView>
+        )}
+
+        {/* ==================================================
+            41 - د یوې برخې دننه درسونه
+        ================================================== */}
+
+        {screen === 'sectionFolder' && (
+          <ScrollView contentContainerStyle={styles.pageContent}>
+            <PageHeader
+              title={selectedFolder}
+              subtitle={selectedSection}
+              onBack={goBack}
+            />
+
+            <GoldButton
+              title="＋ نوی درس اضافه کړئ"
+              onPress={openAddLesson}
+            />
+
+            {getFolderItems().map(item => (
+              <View
+                key={item.id}
+                style={styles.lessonCard}
+              >
+                <TouchableOpacity
+                  style={styles.flexText}
+                  onPress={() => openItem(item)}
+                >
+                  <Text style={styles.lessonTitle}>
+                    {item.title}
+                  </Text>
+
+                  <Text style={styles.smallMuted}>
+                    {item.description}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => deleteGlobalItem(item.id)}
+                >
+                  <Text style={styles.deleteIcon}>حذف</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </ScrollView>
+        )}
+
+        {/* ==================================================
+            42 - نوی درس
+        ================================================== */}
+
+        {screen === 'lessonEditor' && (
+          <ScrollView contentContainerStyle={styles.pageContent}>
+            <PageHeader
+              title="نوی درس"
+              subtitle="د درس معلومات ثبت کړئ"
+              onBack={goBack}
+            />
+
+            <Field
+              label="د درس نوم"
+              value={formTitle}
+              onChangeText={setFormTitle}
+              placeholder="د درس نوم"
+            />
+
+            <Field
+              label="لنډ معلومات"
+              value={formDescription}
+              onChangeText={setFormDescription}
+              placeholder="د درس په اړه معلومات"
+              multiline
+            />
+
+            <Field
+              label="د درس متن"
+              value={formText}
+              onChangeText={setFormText}
+              placeholder="د درس متن ولیکئ"
+              multiline
+            />
+
+            <View style={styles.formCard}>
+              <Text style={styles.cardHeading}>د فایلونو ټاکل</Text>
+
+              <GoldButton
+                title="♫ آډیو فایل وټاکئ"
+                secondary
+                onPress={pickAudio}
+              />
+
+              {formAudio ? (
+                <Text style={styles.fileSelected}>
+                  آډیو فایل انتخاب شو ✓
+                </Text>
+              ) : null}
+
+              <GoldButton
+                title="▤ PDF کتاب وټاکئ"
+                secondary
+                onPress={pickPDF}
+              />
+
+              {formPDF ? (
+                <Text style={styles.fileSelected}>
+                  PDF فایل انتخاب شو ✓
+                </Text>
+              ) : null}
+            </View>
+
+            <GoldButton
+              title="درس خوندي کړئ"
+              onPress={addGlobalItem}
+            />
+          </ScrollView>
+        )}
+
+        {/* ==================================================
+            43 - د درس معلومات
+        ================================================== */}
+
+        {screen === 'itemDetails' && (
+          <ScrollView contentContainerStyle={styles.pageContent}>
+            <PageHeader
+              title={selectedItem?.title || 'درس'}
+              subtitle={selectedItem?.scholar || ''}
+              onBack={goBack}
+            />
+
+            <View style={styles.detailCard}>
+              <Text style={styles.detailTitle}>
+                {selectedItem?.title}
+              </Text>
+
+              <Text style={styles.detailText}>
+                {selectedItem?.description}
+              </Text>
+
+              <Text style={styles.bodyText}>
+                {selectedItem?.text}
+              </Text>
+            </View>
+
+            {selectedItem?.audio ? (
+              <GoldButton
+                title="آډیو شریکول"
+                secondary
+                onPress={() => shareFile(selectedItem.audio, 'audio/*')}
+              />
+            ) : null}
+
+            {selectedItem?.pdf ? (
+              <GoldButton
+                title="PDF شریکول"
+                secondary
+                onPress={() => shareFile(selectedItem.pdf, 'application/pdf')}
+              />
+            ) : null}
+
+            <GoldButton
+              title={
+                isFavorite(selectedItem?.id)
+                  ? '♡ له خوښې لرې کول'
+                  : '♡ خوښې ته اضافه کول'
+              }
+              onPress={() => toggleFavorite(selectedItem)}
+            />
+
+            <GoldButton
+              title="درس شریکول"
+              secondary
+              onPress={() =>
+                shareText(
+                  selectedItem?.title,
+                  selectedItem?.text || selectedItem?.description
+                )
+              }
+            />
+          </ScrollView>
+        )}
+
+        {/* ==================================================
+            44 - نوټونه
+        ================================================== */}
+
+        {screen === 'notes' && (
+          <ScrollView contentContainerStyle={styles.pageContent}>
+            <PageHeader
+              title="زما نوټونه"
+              subtitle="شخصي یادښتونه"
+              onBack={goBack}
+            />
+
+            <GoldButton
+              title="＋ نوی نوټ"
+              onPress={openNewNote}
+            />
+
+            <Field
+              label="د نوټونو لټون"
+              value={noteSearch}
+              onChangeText={setNoteSearch}
+              placeholder="نوټ ولټوئ"
+            />
+
+            {notes
+              .filter(note =>
+                `${note.title} ${note.text}`
+                  .toLowerCase()
+                  .includes(noteSearch.toLowerCase())
+              )
+              .map(note => (
+                <View
+                  key={note.id}
+                  style={styles.lessonCard}
+                >
+                  <TouchableOpacity
+                    style={styles.flexText}
+                    onPress={() => openNote(note)}
+                  >
+                    <Text style={styles.lessonTitle}>
+                      {note.title}
+                    </Text>
+
+                    <Text style={styles.smallMuted}>
+                      {note.text}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => deleteNote(note.id)}
+                  >
+                    <Text style={styles.deleteIcon}>حذف</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+          </ScrollView>
+        )}
+
+        {/* ==================================================
+            45 - د نوټ لیکلو سکرین
+        ================================================== */}
+
+        {screen === 'noteEditor' && (
+          <ScrollView contentContainerStyle={styles.pageContent}>
+            <PageHeader
+              title="د نوټ لیکل"
+              subtitle="خپل معلومات خوندي کړئ"
+              onBack={goBack}
+            />
+
+            <Field
+              label="سرلیک"
+              value={formTitle}
+              onChangeText={setFormTitle}
+              placeholder="د نوټ سرلیک"
+            />
+
+            <Field
+              label="متن"
+              value={formText}
+              onChangeText={setFormText}
+              placeholder="خپل یادښت ولیکئ"
+              multiline
+            />
+
+            <GoldButton
+              title="نوټ خوندي کړئ"
+              onPress={saveNote}
+            />
+
+            <GoldButton
+              title="له نورو سره شریکول"
+              secondary
+              onPress={() => shareText(formTitle, formText)}
+            />
+          </ScrollView>
+        )}
+
+        {/* ==================================================
+            46 - د خبرتیاوو سکرین
+        ================================================== */}
+
+        {screen === 'reminders' && (
+          <ScrollView contentContainerStyle={styles.pageContent}>
+            <PageHeader
+              title="خبرتیاوې"
+              subtitle="د بیانونو او درسونو یادونې"
+              onBack={goBack}
+            />
+
+            <GoldButton
+              title="＋ نوې خبرتیا"
+              onPress={() => {
+                clearForm();
+                setScreen('reminderEditor');
+              }}
+            />
+
+            {reminders.map(item => (
+              <View
+                key={item.id}
+                style={styles.listCard}
+              >
+                <View style={styles.flexText}>
+                  <Text style={styles.listCardTitle}>
+                    {item.title}
+                  </Text>
+
+                  <Text style={styles.smallMuted}>
+                    {item.date} - {item.time}
                   </Text>
                 </View>
-              </>
-            )}
 
-            {/* SEARCH */}
-            {screen === 'search' && (
-              <>
-                <TextInput
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  placeholder="د کتاب، درس یا عالم نوم ولیکه..."
-                  placeholderTextColor={COLORS.muted}
-                  style={styles.input}
-                />
-                {globalItems
-                  .filter(item =>
-                    `${item.title} ${item.text} ${item.scholar} ${item.section}`
-                      .toLowerCase()
-                      .includes(searchQuery.toLowerCase())
-                  )
-                  .map(item =>
-                    card(item.title, item.scholar, () => {
-                      setSelectedItem(item);
-                      setSelectedSection(item.section);
-                      setSelectedFolder(item.folder);
-                      setScreen('itemDetails');
-                    }, '⌕')
-                  )}
-                {searchQuery.length > 0 && globalItems.filter(item =>
-                  `${item.title} ${item.text} ${item.scholar} ${item.section}`
-                    .toLowerCase()
-                    .includes(searchQuery.toLowerCase())
-                ).length === 0 && (
-                  <Text style={styles.emptyText}>پایله ونه موندل شوه.</Text>
-                )}
-              </>
-            )}
-
-            {/* FAVORITES */}
-            {screen === 'favorites' && (
-              <>
-                {favorites.map(item =>
-                  card(item.title, item.scholar || 'خوښې شوې برخه', () => {
-                    setSelectedItem(item);
-                    setScreen(item.arabic ? 'dhikrDetails' : 'itemDetails');
-                    if (item.arabic) setSelectedDhikr(item);
-                  }, '★')
-                )}
-                {favorites.length === 0 && (
-                  <Text style={styles.emptyText}>تر اوسه خوښې شوې برخه نشته.</Text>
-                )}
-              </>
-            )}
-
+                <TouchableOpacity
+                  onPress={() => deleteReminder(item.id)}
+                >
+                  <Text style={styles.deleteIcon}>حذف</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
           </ScrollView>
+        )}
 
-          {screen !== 'home' && (
-            <TouchableOpacity style={styles.homeButton} onPress={() => setScreen('home')}>
-              <Text style={styles.homeButtonText}>⌂ کورپاڼه</Text>
-            </TouchableOpacity>
-          )}
-        </>
-      )}
+        {/* ==================================================
+            47 - د نوې خبرتیا جوړول
+        ================================================== */}
+
+        {screen === 'reminderEditor' && (
+          <ScrollView contentContainerStyle={styles.pageContent}>
+            <PageHeader
+              title="نوې خبرتیا"
+              subtitle="د یادونې وخت وټاکئ"
+              onBack={goBack}
+            />
+
+            <Field
+              label="د خبرتیا نوم"
+              value={formTitle}
+              onChangeText={setFormTitle}
+              placeholder="د بیان یا درس نوم"
+            />
+
+            <Field
+              label="نېټه (YYYY-MM-DD)"
+              value={formDate}
+              onChangeText={setFormDate}
+              placeholder="2026-12-25"
+            />
+
+            <Field
+              label="وخت (24 ساعته)"
+              value={formTime}
+              onChangeText={setFormTime}
+              placeholder="18:30"
+            />
+
+            <GoldButton
+              title="خبرتیا ثبت کړئ"
+              onPress={addReminder}
+            />
+          </ScrollView>
+        )}
+
+        {/* ==================================================
+            48 - د اذکارو کورپاڼه
+        ================================================== */}
+
+        {screen === 'adhkarHome' && (
+          <ScrollView contentContainerStyle={styles.pageContent}>
+            <PageHeader
+              title="ورځني اذکار"
+              subtitle="د سهار او ماښام اذکار"
+              onBack={goBack}
+            />
+
+            {DHIKR_CATEGORIES.map(category => (
+              <TouchableOpacity
+                key={category}
+                style={styles.listCard}
+                onPress={() => {
+                  setSelectedFolder(category);
+                  setScreen('adhkarFolder');
+                }}
+              >
+                <Text style={styles.listCardIcon}>۞</Text>
+
+                <Text style={styles.listCardTitle}>
+                  {category}
+                </Text>
+
+                <Text style={styles.lessonArrow}>‹</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+
+        {/* ==================================================
+            49 - د اذکارو لست
+        ================================================== */}
+
+        {screen === 'adhkarFolder' && (
+          <ScrollView contentContainerStyle={styles.pageContent}>
+            <PageHeader
+              title={selectedFolder}
+              subtitle="ذکرونه"
+              onBack={goBack}
+            />
+
+            <GoldButton
+              title="＋ نوی ذکر اضافه کړئ"
+              onPress={() => {
+                clearForm();
+                setScreen('dhikrEditor');
+              }}
+            />
+
+            {adhkar
+              .filter(item => item.category === selectedFolder)
+              .map(item => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.listCard}
+                  onPress={() => {
+                    setSelectedDhikr(item);
+                    setScreen('dhikrDetails');
+                  }}
+                >
+                  <Text style={styles.listCardTitle}>
+                    {item.title}
+                  </Text>
+
+                  <Text style={styles.lessonArrow}>‹</Text>
+                </TouchableOpacity>
+              ))}
+          </ScrollView>
+        )}
+
+        {/* ==================================================
+            50 - د ذکر اضافه کول
+        ================================================== */}
+
+        {screen === 'dhikrEditor' && (
+          <ScrollView contentContainerStyle={styles.pageContent}>
+            <PageHeader
+              title="نوی ذکر"
+              subtitle={selectedFolder}
+              onBack={goBack}
+            />
+
+            <Field
+              label="د ذکر نوم"
+              value={formTitle}
+              onChangeText={setFormTitle}
+              placeholder="نوم"
+            />
+
+            <Field
+              label="د ذکر متن"
+              value={formText}
+              onChangeText={setFormText}
+              placeholder="عربي ذکر ولیکئ"
+              multiline
+            />
+
+            <Field
+              label="ژباړه او تشریح"
+              value={formDescription}
+              onChangeText={setFormDescription}
+              placeholder="ژباړه"
+              multiline
+            />
+
+            <Field
+              label="د تکرار شمېر"
+              value={formCount}
+              onChangeText={setFormCount}
+              placeholder="33"
+              keyboardType="numeric"
+            />
+
+            <GoldButton
+              title="ذکر خوندي کړئ"
+              onPress={addDhikr}
+            />
+          </ScrollView>
+        )}
+
+        {/* ==================================================
+            51 - د ذکر تفصیل
+        ================================================== */}
+
+        {screen === 'dhikrDetails' && (
+          <ScrollView contentContainerStyle={styles.pageContent}>
+            <PageHeader
+              title={selectedDhikr?.title || 'ذکر'}
+              subtitle="د ذکر متن"
+              onBack={goBack}
+            />
+
+            <View style={styles.detailCard}>
+              <Text style={styles.arabicText}>
+                {selectedDhikr?.text}
+              </Text>
+
+              <View style={styles.headerLine} />
+
+              <Text style={styles.bodyText}>
+                {selectedDhikr?.translation}
+              </Text>
+
+              <Text style={styles.smallMuted}>
+                د تکرار شمېر: {selectedDhikr?.count || 1}
+              </Text>
+            </View>
+
+            <GoldButton
+              title="ذکر شریکول"
+              onPress={() =>
+                shareText(
+                  selectedDhikr?.title,
+                  selectedDhikr?.text
+                )
+              }
+            />
+
+            <GoldButton
+              title="ذکر حذف کول"
+              secondary
+              onPress={() => deleteDhikr(selectedDhikr?.id)}
+            />
+          </ScrollView>
+        )}
+
+        {/* ==================================================
+            52 - د لمانځه تفصیلي تنظیمات
+        ================================================== */}
+
+        {screen === 'prayer' && (
+          <ScrollView contentContainerStyle={styles.pageContent}>
+            <PageHeader
+              title="د لمانځه وختونه"
+              subtitle="موقعیت او د محاسبې طریقه"
+              onBack={goBack}
+            />
+
+            <View style={styles.formCard}>
+              <Text style={styles.cardHeading}>
+                اوسنی موقعیت
+              </Text>
+
+              <Text style={styles.bodyText}>
+                {settings.city || 'موقعیت نه دی ټاکل شوی'}
+              </Text>
+
+              <GoldButton
+                title="زما موقعیت ترلاسه کړه"
+                onPress={getPrayerLocation}
+              />
+            </View>
+
+            <Text style={styles.fieldLabel}>
+              د محاسبې طریقه
+            </Text>
+
+            {PRAYER_METHODS.map(method => (
+              <TouchableOpacity
+                key={method.value}
+                style={styles.optionRow}
+                onPress={() =>
+                  updateSettings({
+                    calculationMethod: method.value
+                  })
+                }
+              >
+                <Text style={styles.optionText}>
+                  {method.label}
+                </Text>
+
+                <Text style={styles.optionCheck}>
+                  {settings.calculationMethod === method.value ? '✓' : '○'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+
+            <Text style={styles.fieldLabel}>
+              د عصر طریقه
+            </Text>
+
+            {[
+              { label: 'حنفي', value: 'Hanafi' },
+              { label: 'شافعي', value: 'Shafi' }
+            ].map(item => (
+              <TouchableOpacity
+                key={item.value}
+                style={styles.optionRow}
+                onPress={() =>
+                  updateSettings({ madhab: item.value })
+                }
+              >
+                <Text style={styles.optionText}>
+                  {item.label}
+                </Text>
+
+                <Text style={styles.optionCheck}>
+                  {settings.madhab === item.value ? '✓' : '○'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+
+            <GoldButton
+              title="وختونه بیا محاسبه کړه"
+              onPress={refreshPrayerTimes}
+            />
+          </ScrollView>
+        )}
+
+        {/* ==================================================
+            53 - د اپلیکیشن تنظیمات
+        ================================================== */}
+
+        {screen === 'settings' && (
+          <ScrollView contentContainerStyle={styles.pageContent}>
+            <PageHeader
+              title="تنظیمات"
+              subtitle="د میراث اسلام شخصي تنظیمات"
+              onBack={goBack}
+            />
+
+            <Text style={styles.cardHeading}>
+              د اپلیکیشن ژبه
+            </Text>
+
+            {LANGUAGES.map(language => (
+              <TouchableOpacity
+                key={language}
+                style={styles.optionRow}
+                onPress={() => updateSettings({ language })}
+              >
+                <Text style={styles.optionText}>
+                  {language}
+                </Text>
+
+                <Text style={styles.optionCheck}>
+                  {settings.language === language ? '✓' : '○'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+
+            <View style={styles.formCard}>
+              <Text style={styles.cardHeading}>
+                د متن رنګ
+              </Text>
+
+              {[
+                { label: 'سپین', value: '#F5F0E4' },
+                { label: 'طلایي', value: '#D6B56D' },
+                { label: 'روښانه شین', value: '#A9C6A7' }
+              ].map(color => (
+                <TouchableOpacity
+                  key={color.value}
+                  style={styles.optionRow}
+                  onPress={() =>
+                    updateSettings({ textColor: color.value })
+                  }
+                >
+                  <Text style={styles.optionText}>
+                    {color.label}
+                  </Text>
+
+                  <View
+                    style={[
+                      styles.colorCircle,
+                      { backgroundColor: color.value }
+                    ]}
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <View style={styles.formCard}>
+              <Text style={styles.cardHeading}>
+                خبرتیاوې
+              </Text>
+
+              <View style={styles.optionRow}>
+                <Text style={styles.optionText}>
+                  خبرتیاوې فعالې وي
+                </Text>
+
+                <Switch
+                  value={settings.notificationsEnabled}
+                  onValueChange={value =>
+                    updateSettings({
+                      notificationsEnabled: value
+                    })
+                  }
+                  trackColor={{
+                    false: COLORS.border,
+                    true: COLORS.greenLight
+                  }}
+                  thumbColor={COLORS.gold}
+                />
+              </View>
+            </View>
+
+            <GoldButton
+              title="د لمانځه تنظیمات"
+              onPress={() => setScreen('prayer')}
+            />
+
+            <GoldButton
+              title="کورپاڼې ته ستنېدل"
+              secondary
+              onPress={() => setScreen('home')}
+            />
+          </ScrollView>
+        )}
+
+        {/* ==================================================
+            54 - لټون
+        ================================================== */}
+
+        {screen === 'search' && (
+          <ScrollView contentContainerStyle={styles.pageContent}>
+            <PageHeader
+              title="لټون"
+              subtitle="په درسونو کې پلټنه"
+              onBack={goBack}
+            />
+
+            <Field
+              label="د درس نوم یا متن"
+              value={searchText}
+              onChangeText={setSearchText}
+              placeholder="دلته ولیکئ..."
+            />
+
+            {getSearchResults().map(item => (
+              <TouchableOpacity
+                key={item.id}
+                style={styles.lessonCard}
+                onPress={() => openItem(item)}
+              >
+                <View style={styles.flexText}>
+                  <Text style={styles.lessonTitle}>
+                    {item.title}
+                  </Text>
+
+                  <Text style={styles.smallMuted}>
+                    {item.scholar}
+                  </Text>
+                </View>
+
+                <Text style={styles.lessonArrow}>‹</Text>
+              </TouchableOpacity>
+            ))}
+
+            {searchText.trim() && getSearchResults().length === 0 && (
+              <Text style={styles.emptyText}>
+                د لټون پایله ونه موندل شوه.
+              </Text>
+            )}
+          </ScrollView>
+        )}
+
+        {/* ==================================================
+            55 - خوښ شوي درسونه
+        ================================================== */}
+
+        {screen === 'favorites' && (
+          <ScrollView contentContainerStyle={styles.pageContent}>
+            <PageHeader
+              title="خوښ شوي درسونه"
+              subtitle="ستاسو غوره درسونه"
+              onBack={goBack}
+            />
+
+            {favorites.map(item => (
+              <TouchableOpacity
+                key={item.id}
+                style={styles.lessonCard}
+                onPress={() => openItem(item)}
+              >
+                <View style={styles.flexText}>
+                  <Text style={styles.lessonTitle}>
+                    {item.title}
+                  </Text>
+
+                  <Text style={styles.smallMuted}>
+                    {item.scholar || item.section}
+                  </Text>
+                </View>
+
+                <Text style={styles.lessonArrow}>‹</Text>
+              </TouchableOpacity>
+            ))}
+
+            {favorites.length === 0 && (
+              <Text style={styles.emptyText}>
+                تر اوسه کوم درس خوښې ته نه دی اضافه شوی.
+              </Text>
+            )}
+          </ScrollView>
+        )}
+
+      </KeyboardAvoidingView>
     </View>
   );
 }
 
+// ==================================================
+// 56 - د سکرین سرلیک
+// ==================================================
+
+function PageHeader({ title, subtitle, onBack }) {
+  return (
+    <View style={styles.pageHeader}>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={onBack}
+      >
+        <Text style={styles.backButtonText}>
+          → شاته
+        </Text>
+      </TouchableOpacity>
+
+      <Text style={styles.pageTitle}>
+        {title}
+      </Text>
+
+      {subtitle ? (
+        <Text style={styles.pageSubtitle}>
+          {subtitle}
+        </Text>
+      ) : null}
+
+      <View style={styles.headerLine} />
+    </View>
+  );
+}
+
+// ==================================================
+// 57 - د اپلیکیشن ټول ډیزاینونه
+// ==================================================
+
 const styles = StyleSheet.create({
+
   container: {
     flex: 1,
     backgroundColor: COLORS.background
   },
-  scroll: {
-    flex: 1
+
+  loadingScreen: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 18
   },
-  content: {
-    padding: 14,
+
+  loadingLogo: {
+    color: COLORS.gold,
+    fontSize: 30,
+    fontWeight: 'bold'
+  },
+
+  loadingText: {
+    color: COLORS.muted,
+    fontSize: 14
+  },
+
+  homeContent: {
+    paddingHorizontal: 15,
     paddingBottom: 35
   },
-  loading: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center'
+
+  pageContent: {
+    paddingHorizontal: 16,
+    paddingTop: 15,
+    paddingBottom: 40
   },
-  loadingText: {
-    color: COLORS.gold,
-    marginTop: 15,
-    fontSize: 16
-  },
+
   header: {
-    minHeight: 58,
-    backgroundColor: COLORS.card,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.gold,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14
-  },
-  backButton: {
-    padding: 8
-  },
-  backText: {
-    color: COLORS.gold,
-    fontSize: 16
-  },
-  headerTitle: {
-    color: COLORS.goldLight,
-    fontSize: 18,
-    fontWeight: 'bold',
-    flex: 1,
-    textAlign: 'right'
-  },
-  hero: {
+    marginTop: 12,
+    marginBottom: 18,
     backgroundColor: COLORS.card,
     borderWidth: 1,
-    borderColor: COLORS.gold,
-    borderRadius: 16,
-    padding: 24,
-    alignItems: 'center',
-    marginBottom: 15
+    borderColor: COLORS.border,
+    borderRadius: 18,
+    padding: 20
   },
-  logo: {
+
+  headerDecoration: {
+    alignItems: 'center'
+  },
+
+  headerBismillah: {
     color: COLORS.goldLight,
+    fontSize: 19,
+    textAlign: 'center',
+    marginBottom: 13
+  },
+
+  logoTitle: {
+    color: COLORS.gold,
     fontSize: 34,
     fontWeight: 'bold',
     textAlign: 'center'
   },
-  heroSubtitle: {
-    color: COLORS.gold,
-    fontSize: 18,
-    marginTop: 7
-  },
-  heroLine: {
-    color: COLORS.muted,
+
+  headerSubtitle: {
+    color: COLORS.white,
     fontSize: 13,
-    marginTop: 12,
+    marginTop: 8,
     textAlign: 'center'
   },
-  searchBox: {
-    backgroundColor: COLORS.card2,
-    borderRadius: 12,
-    padding: 15,
-    marginBottom: 17,
-    borderWidth: 1,
-    borderColor: COLORS.border
+
+  headerLine: {
+    height: 1,
+    backgroundColor: COLORS.border,
+    width: '75%',
+    alignSelf: 'center',
+    marginVertical: 13
   },
-  searchPlaceholder: {
+
+  headerSmall: {
     color: COLORS.muted,
-    fontSize: 15,
-    textAlign: 'right'
+    fontSize: 12,
+    textAlign: 'center'
   },
-  sectionHeading: {
-    color: COLORS.gold,
-    fontSize: 19,
-    fontWeight: 'bold',
-    textAlign: 'right',
-    marginTop: 15,
-    marginBottom: 10
-  },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
+
+  prayerCard: {
     backgroundColor: COLORS.card,
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 9,
-    minHeight: 68
+    borderRadius: 15,
+    padding: 13,
+    marginBottom: 22
   },
-  cardIcon: {
+
+  prayerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14
+  },
+
+  cardHeading: {
     color: COLORS.gold,
-    fontSize: 24,
-    width: 38,
-    textAlign: 'center'
-  },
-  cardWords: {
-    flex: 1,
-    paddingHorizontal: 8
-  },
-  cardTitle: {
-    color: COLORS.goldLight,
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: 'bold',
-    textAlign: 'right'
+    textAlign: 'right',
+    marginBottom: 10
   },
-  cardSubtitle: {
+
+  smallMuted: {
     color: COLORS.muted,
     fontSize: 12,
     textAlign: 'right',
-    marginTop: 5
+    marginTop: 4
   },
-  arrow: {
+
+  refreshButton: {
+    padding: 8,
+    backgroundColor: COLORS.card2,
+    borderRadius: 8
+  },
+
+  refreshText: {
     color: COLORS.gold,
-    fontSize: 24
+    fontSize: 12
   },
-  introText: {
+
+  prayerRow: {
+    gap: 9,
+    paddingVertical: 4
+  },
+
+  prayerItem: {
+    width: 77,
+    backgroundColor: COLORS.card2,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border
+  },
+
+  prayerIcon: {
+    fontSize: 19,
+    marginBottom: 5
+  },
+
+  prayerName: {
+    color: COLORS.white,
+    fontSize: 11,
+    marginBottom: 7
+  },
+
+  prayerTime: {
+    color: COLORS.gold,
+    fontSize: 12,
+    fontWeight: 'bold'
+  },
+
+  prayerMore: {
+    alignItems: 'center',
+    paddingTop: 12
+  },
+
+  sectionTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 13,
+    marginBottom: 12
+  },
+
+  sectionTitle: {
+    color: COLORS.gold,
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'right'
+  },
+
+  goldLink: {
     color: COLORS.goldLight,
-    fontSize: 15,
-    textAlign: 'right',
-    marginBottom: 15,
-    lineHeight: 25
+    fontSize: 12
   },
-  panel: {
+
+  mainLibraryCard: {
+    backgroundColor: COLORS.card2,
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: COLORS.gold,
+    padding: 19,
+    marginBottom: 20
+  },
+
+  libraryDecoration: {
+    alignItems: 'center'
+  },
+
+  libraryIcon: {
+    fontSize: 36,
+    color: COLORS.gold,
+    marginBottom: 9
+  },
+
+  libraryTitle: {
+    color: COLORS.goldLight,
+    fontSize: 21,
+    fontWeight: 'bold',
+    textAlign: 'center'
+  },
+
+  libraryDescription: {
+    color: COLORS.white,
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 9
+  },
+
+  libraryButton: {
+    color: COLORS.gold,
+    fontSize: 14,
+    marginTop: 15,
+    fontWeight: 'bold'
+  },
+
+  categoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 10
+  },
+
+  categoryCard: {
+    width: '48%',
+    minHeight: 115,
     backgroundColor: COLORS.card,
     borderWidth: 1,
     borderColor: COLORS.border,
     borderRadius: 13,
-    padding: 14,
-    marginBottom: 13
+    padding: 13,
+    justifyContent: 'center'
   },
-  panelTitle: {
-    color: COLORS.goldLight,
-    fontSize: 18,
-    fontWeight: 'bold',
-    textAlign: 'right',
-    marginBottom: 10
-  },
-  mutedText: {
-    color: COLORS.muted,
-    fontSize: 12,
-    textAlign: 'right',
-    marginVertical: 5,
-    lineHeight: 21
-  },
-  detailText: {
-    color: COLORS.white,
-    fontSize: 15,
-    textAlign: 'right',
-    lineHeight: 27,
-    marginVertical: 9
-  },
-  arabicText: {
-    color: COLORS.goldLight,
-    fontSize: 25,
-    textAlign: 'right',
-    lineHeight: 48,
-    marginVertical: 15
-  },
-  listText: {
-    color: COLORS.white,
-    fontSize: 14,
-    textAlign: 'right',
-    paddingVertical: 6
-  },
-  fieldBox: {
-    marginBottom: 12
-  },
-  fieldLabel: {
+
+  categoryIcon: {
     color: COLORS.gold,
-    fontSize: 14,
-    textAlign: 'right',
-    marginBottom: 7,
-    marginTop: 8
-  },
-  input: {
-    backgroundColor: '#0D1510',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 9,
-    padding: 12,
-    color: COLORS.white,
-    fontSize: 15,
-    minHeight: 45,
-    textAlign: 'right',
+    fontSize: 25,
+    textAlign: 'center',
     marginBottom: 8
   },
-  smallButton: {
-    backgroundColor: COLORS.green,
-    borderRadius: 9,
-    paddingVertical: 11,
-    paddingHorizontal: 13,
-    marginTop: 8,
-    marginBottom: 4,
+
+  categoryTitle: {
+    color: COLORS.white,
+    fontSize: 13,
+    textAlign: 'center',
+    fontWeight: 'bold'
+  },
+
+  categoryArrow: {
+    color: COLORS.gold,
+    textAlign: 'center',
+    marginTop: 7
+  },
+
+  quickGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 10
+  },
+
+  actionCard: {
+    width: '48%',
+    minHeight: 105,
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 13,
+    padding: 12,
     alignItems: 'center',
     justifyContent: 'center'
   },
-  smallButtonText: {
+
+  actionIcon: {
+    color: COLORS.gold,
+    fontSize: 25,
+    marginBottom: 7
+  },
+
+  actionTitle: {
     color: COLORS.white,
     fontSize: 13,
     fontWeight: 'bold',
     textAlign: 'center'
   },
-  mainButton: {
-    backgroundColor: COLORS.green,
-    borderRadius: 11,
-    padding: 15,
-    alignItems: 'center',
-    marginTop: 14
-  },
-  mainButtonText: {
-    color: COLORS.white,
-    fontSize: 15,
-    fontWeight: 'bold'
-  },
-  choice: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 8,
-    padding: 11,
-    marginTop: 6,
-    backgroundColor: '#152019'
-  },
-  choiceActive: {
-    borderColor: COLORS.gold,
-    backgroundColor: '#304332'
-  },
-  choiceText: {
-    color: COLORS.white,
-    textAlign: 'right',
-    fontSize: 14
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 5,
-    marginTop: 7
-  },
-  prayerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    paddingVertical: 12
-  },
-  prayerName: {
-    color: COLORS.white,
-    fontSize: 15
-  },
-  prayerTime: {
-    color: COLORS.goldLight,
-    fontSize: 18,
-    fontWeight: 'bold'
-  },
-  adjustRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 8
-  },
-  adjustLabel: {
-    color: COLORS.white,
-    fontSize: 14
-  },
-  adjustInput: {
-    backgroundColor: '#0D1510',
-    color: COLORS.white,
-    borderColor: COLORS.border,
-    borderWidth: 1,
-    borderRadius: 7,
-    minWidth: 65,
-    padding: 7,
+
+  actionSubtitle: {
+    color: COLORS.muted,
+    fontSize: 10,
+    marginTop: 5,
     textAlign: 'center'
   },
-  switchRow: {
+
+  lessonCard: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center'
-  },
-  emptyText: {
-    color: COLORS.muted,
-    textAlign: 'center',
-    padding: 25,
-    fontSize: 14
-  },
-  footer: {
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
     alignItems: 'center',
-    padding: 20,
-    marginTop: 20
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    padding: 13,
+    marginBottom: 9
   },
-  footerTitle: {
-    color: COLORS.gold,
-    fontSize: 20,
+
+  lessonTextBox: {
+    flex: 1
+  },
+
+  flexText: {
+    flex: 1
+  },
+
+  lessonTitle: {
+    color: COLORS.white,
+    fontSize: 14,
+    textAlign: 'right',
     fontWeight: 'bold'
   },
+
+  lessonDescription: {
+    color: COLORS.muted,
+    fontSize: 11,
+    textAlign: 'right',
+    marginTop: 5
+  },
+
+  lessonArrow: {
+    color: COLORS.gold,
+    fontSize: 24,
+    marginLeft: 10
+  },
+
+  footer: {
+    alignItems: 'center',
+    paddingVertical: 25,
+    marginTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border
+  },
+
+  footerLogo: {
+    color: COLORS.gold,
+    fontSize: 23,
+    fontWeight: 'bold'
+  },
+
   footerText: {
     color: COLORS.muted,
     fontSize: 12,
     marginTop: 7
   },
-  homeButton: {
-    backgroundColor: COLORS.green,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.gold,
-    padding: 13,
+
+  footerSmall: {
+    color: COLORS.muted,
+    fontSize: 10,
+    marginTop: 8
+  },
+
+  pageHeader: {
+    marginBottom: 20,
     alignItems: 'center'
   },
-  homeButtonText: {
-    color: COLORS.goldLight,
+
+  backButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: COLORS.card2,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 13,
+    marginBottom: 14
+  },
+
+  backButtonText: {
+    color: COLORS.gold,
+    fontSize: 13
+  },
+
+  pageTitle: {
+    color: COLORS.gold,
+    fontSize: 23,
+    fontWeight: 'bold',
+    textAlign: 'center'
+  },
+
+  pageSubtitle: {
+    color: COLORS.muted,
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 7
+  },
+
+  scholarCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 13,
+    padding: 14,
+    marginBottom: 10
+  },
+
+  scholarNumber: {
+    color: COLORS.gold,
+    fontSize: 19,
+    fontWeight: 'bold',
+    marginRight: 13
+  },
+
+  scholarName: {
+    color: COLORS.white,
+    fontSize: 14,
+    fontWeight: 'bold',
+    textAlign: 'right'
+  },
+
+  listCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: 14,
+    marginBottom: 10
+  },
+
+  listCardIcon: {
+    color: COLORS.gold,
+    fontSize: 23,
+    marginRight: 12
+  },
+
+  listCardTitle: {
+    color: COLORS.white,
+    fontSize: 14,
+    textAlign: 'right',
+    flex: 1
+  },
+
+  deleteIcon: {
+    color: COLORS.red,
+    fontSize: 12,
+    paddingHorizontal: 7
+  },
+
+  chapterCard: {
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 13,
+    padding: 13,
+    marginBottom: 13
+  },
+
+  chapterHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12
+  },
+
+  chapterTitle: {
+    color: COLORS.gold,
     fontSize: 15,
+    fontWeight: 'bold',
+    textAlign: 'right',
+    flex: 1
+  },
+
+  lessonRow: {
+    backgroundColor: COLORS.card2,
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 7
+  },
+
+  formCard: {
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 13,
+    padding: 14,
+    marginBottom: 15
+  },
+
+  fieldContainer: {
+    marginBottom: 13
+  },
+
+  fieldLabel: {
+    color: COLORS.goldLight,
+    fontSize: 13,
+    textAlign: 'right',
+    marginBottom: 7
+  },
+
+  input: {
+    backgroundColor: COLORS.card2,
+    color: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 9,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    fontSize: 14,
+    textAlign: 'right',
+    minHeight: 45
+  },
+
+  multilineInput: {
+    minHeight: 110,
+    textAlignVertical: 'top'
+  },
+
+  goldButton: {
+    backgroundColor: COLORS.gold,
+    padding: 13,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 9,
+    marginBottom: 9
+  },
+
+  goldButtonText: {
+    color: COLORS.black,
+    fontSize: 14,
     fontWeight: 'bold'
+  },
+
+  secondaryButton: {
+    backgroundColor: COLORS.card2,
+    borderWidth: 1,
+    borderColor: COLORS.gold
+  },
+
+  secondaryButtonText: {
+    color: COLORS.goldLight
+  },
+
+  fileSelected: {
+    color: COLORS.greenLight,
+    fontSize: 12,
+    textAlign: 'right',
+    marginVertical: 7
+  },
+
+  detailCard: {
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 13,
+    padding: 17,
+    marginBottom: 15
+  },
+
+  detailTitle: {
+    color: COLORS.gold,
+    fontSize: 21,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 15
+  },
+
+  detailText: {
+    color: COLORS.muted,
+    fontSize: 13,
+    textAlign: 'right',
+    marginBottom: 15
+  },
+
+  bodyText: {
+    color: COLORS.white,
+    fontSize: 15,
+    lineHeight: 28,
+    textAlign: 'right'
+  },
+
+  arabicText: {
+    color: COLORS.goldLight,
+    fontSize: 25,
+    lineHeight: 48,
+    textAlign: 'center',
+    marginVertical: 15
+  },
+
+  emptyText: {
+    color: COLORS.muted,
+    textAlign: 'center',
+    padding: 25,
+    fontSize: 13
+  },
+
+  optionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: COLORS.card,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: 13,
+    marginBottom: 8
+  },
+
+  optionText: {
+    color: COLORS.white,
+    fontSize: 13,
+    textAlign: 'right'
+  },
+
+  optionCheck: {
+    color: COLORS.gold,
+    fontSize: 19
+  },
+
+  colorCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1,
+    borderColor: COLORS.gold
   }
+
 });
+امه کوي
+  // ==================================================
