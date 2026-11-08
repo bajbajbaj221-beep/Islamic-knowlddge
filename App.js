@@ -1,584 +1,1151 @@
+ import React, { useState, useEffect } from 'react';
 
- 
-import React, { useState, useEffect } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity,
-  TextInput, StyleSheet, StatusBar, Alert
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  StyleSheet,
+  StatusBar,
+  Alert,
+  Share,
 } from 'react-native';
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Sharing from 'expo-sharing';
-import { WebView } from 'react-native-webview';
- import AsyncStorage from '@react-native-async-storage/async-storage';
-const scholars = [
-  'شیخ عبدالسلام رستمي رحمه الله',
-  'شیخ أبو محمد أمين الله البشاوري حفظه الله',
-  'شیخ سردارولي ثاقب رحمه الله',
-  'شیخ أبو عبیدالله متوکل رحمه الله',
+
+const COLORS = {
+  background: '#07130F',
+  card: '#10251C',
+  green: '#174B35',
+  gold: '#D6AD55',
+  white: '#FFFFFF',
+  gray: '#A9B5AE',
+  red: '#C94C4C',
+};
+
+const DEFAULT_SCHOLARS = [
+  'شیخ القرآن عبدالسلام رستمي رحمه الله',
+  'شیخ القرآن أبو محمد أمین الله البشاوري حفظه الله',
+  'شیخ القرآن أبو عبيدالله متوكل رحمه الله',
+  'شیخ القرآن سردارولي ثاقب رحمه الله',
+  'شیخ القرآن عبدالمنان حفظه الله',
 ];
 
-const categories = [
-  'د قرآن کریم درسونه',
+const CATEGORIES = [
+  'د شیخ تعارف او علمي آثار',
+  'د قرآن کریم تفسیر او ترجمه',
   'د احادیثو درسونه',
   'د تاریخ درسونه',
   'د فنونو درسونه',
-  'د جمعې ورځې او عامې خطبې',
+  'د جمعې او عام خطبات',
+  'د سوالات او جوابات',
 ];
 
 export default function App() {
-  const [scholar, setScholar] = useState(null);
-  const [category, setCategory] = useState(null);
-  const [bookId, setBookId] = useState(null);
-const [screen, setScreen] = useState('home');
-const [language, setLanguage] = useState('پښتو');
-const [searchQuery, setSearchQuery] = useState('');
-const [prayerTimes, setPrayerTimes] = useState({
-  fajr: '05:00',
-  dhuhr: '12:30',
-  asr: '15:30',
-  maghrib: '17:30',
-  isha: '19:00',
-});
- const [settingsReady, setSettingsReady] = useState(false);
+  const [scholars, setScholars] = useState(DEFAULT_SCHOLARS);
+  const [books, setBooks] = useState([]);
+  const [notes, setNotes] = useState([]);
+  const [settings, setSettings] = useState({});
+  const [tasbeeh, setTasbeeh] = useState(0);
 
-useEffect(() => {
-  async function loadSettings() {
+  const [page, setPage] = useState('home');
+  const [selectedScholar, setSelectedScholar] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedBook, setSelectedBook] = useState(null);
+  const [selectedChapter, setSelectedChapter] = useState(null);
+  const [selectedBab, setSelectedBab] = useState(null);
+
+  const [search, setSearch] = useState('');
+  const [noteText, setNoteText] = useState('');
+  const [newName, setNewName] = useState('');
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  useEffect(() => {
+    saveData();
+  }, [scholars, books, notes, settings, tasbeeh]);
+
+  const loadData = async () => {
     try {
-      const saved = await AsyncStorage.getItem('app_settings');
-      if (saved) {
-        const data = JSON.parse(saved);
-        if (data.language) setLanguage(data.language);
-        if (data.prayerTimes) setPrayerTimes(data.prayerTimes);
-      }
+      const s = await AsyncStorage.getItem('library_scholars');
+      const b = await AsyncStorage.getItem('library_books');
+      const n = await AsyncStorage.getItem('library_notes');
+      const a = await AsyncStorage.getItem('app_settings');
+      const t = await AsyncStorage.getItem('library_tasbeeh');
+
+      if (s) setScholars(JSON.parse(s));
+      if (b) setBooks(JSON.parse(b));
+      if (n) setNotes(JSON.parse(n));
+      if (a) setSettings(JSON.parse(a));
+      if (t) setTasbeeh(Number(t));
     } catch (error) {
-      Alert.alert('خبرتیا', 'تنظیمات ونه لوستل شول');
-    } finally {
-      setSettingsReady(true);
+      console.log('Load error:', error);
     }
-  }
-  loadSettings();
-}, []);
+  };
 
-useEffect(() => {
-  if (settingsReady) {
-    AsyncStorage.setItem(
-      'app_settings',
-      JSON.stringify({ language, prayerTimes })
-    );
-  }
-}, [language, prayerTimes, settingsReady]);
-  const [books, setBooks] = useState({});
-const [storageReady, setStorageReady] = useState(false);
-
-useEffect(() => {
-  async function loadBooks() {
+  const saveData = async () => {
     try {
-      const saved = await AsyncStorage.getItem('library_books');
-      if (saved) setBooks(JSON.parse(saved));
+      await AsyncStorage.setItem(
+        'library_scholars',
+        JSON.stringify(scholars)
+      );
+
+      await AsyncStorage.setItem(
+        'library_books',
+        JSON.stringify(books)
+      );
+
+      await AsyncStorage.setItem(
+        'library_notes',
+        JSON.stringify(notes)
+      );
+
+      await AsyncStorage.setItem(
+        'app_settings',
+        JSON.stringify(settings)
+      );
+
+      await AsyncStorage.setItem(
+        'library_tasbeeh',
+        String(tasbeeh)
+      );
     } catch (error) {
-      Alert.alert('خبرتیا', 'د کتابونو معلومات نه شول لوستل کېدای');
-    } finally {
-      setStorageReady(true);
+      console.log('Save error:', error);
     }
-  }
-  loadBooks();
-}, []);
+  };
 
-useEffect(() => {
-  if (storageReady) {
-    AsyncStorage.setItem('library_books', JSON.stringify(books));
-  }
-}, [books, storageReady]);
-  const [newBook, setNewBook] = useState('');
-  const [newChapter, setNewChapter] = useState('');
-  const [newBab, setNewBab] = useState('');
-  const [newLesson, setNewLesson] = useState('');
-const [pdfFile, setPdfFile] = useState(null);
-const [pdfData, setPdfData] = useState(null);
+  const shareText = async (title, content) => {
+    try {
+      await Share.share({
+        title,
+        message: `${title}\n\n${content}`,
+      });
+    } catch (error) {
+      Alert.alert('خطا', 'شریکول ترسره نه شو');
+    }
+  };
 
-async function choosePDF() {
-  const result = await DocumentPicker.getDocumentAsync({
-    type: 'application/pdf',
-    copyToCacheDirectory: true,
-  });
+  const addScholar = () => {
+    const name = newName.trim();
 
-  if (!result.canceled) {
-    setPdfFile(result.assets[0]);
-    Alert.alert('بریالی شو', 'PDF فایل انتخاب شو');
-  }
-}
-  const key = scholar && category ? scholar + '|' + category : '';
-  const currentBooks = books[key] || [];
-  const currentBook = currentBooks.find(b => b.id === bookId);
- async function openPDF() {
-  try {
-    if (!pdfFile || !pdfFile.uri) {
-      Alert.alert('خبرتیا', 'لومړی PDF انتخاب کړه');
+    if (!name) {
+      Alert.alert('خبرتیا', 'د عالم نوم ولیکئ');
       return;
     }
 
-    Alert.alert('PDF', 'د PDF د پرانیستلو هڅه روانه ده');
-
-    const available = await Sharing.isAvailableAsync();
-
-    if (!available) {
-      Alert.alert('خبرتیا', 'په دې وسیله کې د PDF شریکول فعال نه دي');
+    if (scholars.includes(name)) {
+      Alert.alert('خبرتیا', 'دا عالم مخکې موجود دی');
       return;
     }
 
-    await Sharing.shareAsync(pdfFile.uri, {
-      mimeType: 'application/pdf',
-      UTI: 'com.adobe.pdf',
-      dialogTitle: 'PDF کتاب پرانیزئ',
-    });
+    setScholars(previous => [...previous, name]);
+    setNewName('');
+  };
 
-  } catch (error) {
+  const deleteScholar = name => {
     Alert.alert(
-      'د PDF تېروتنه',
-      String(error)
+      'د عالم حذف',
+      'ایا غواړئ دا عالم له لېست څخه حذف کړئ؟',
+      [
+        { text: 'نه', style: 'cancel' },
+        {
+          text: 'هو، حذف یې کړه',
+          style: 'destructive',
+          onPress: () => {
+            setScholars(previous =>
+              previous.filter(item => item !== name)
+            );
+          },
+        },
+      ]
     );
-  }
-}
-  function updateBooks(list) {
-    setBooks(old => ({ ...old, [key]: list }));
-  }
+  };
 
-  function addBook() {
-    if (!newBook.trim()) {
+  const addBook = title => {
+    const name = title.trim();
+
+    if (!name) {
       Alert.alert('خبرتیا', 'د کتاب نوم ولیکئ');
       return;
     }
-    updateBooks([
-      ...currentBooks,
+
+    const newBook = {
+      id: Date.now().toString(),
+      scholar: selectedScholar,
+      category: selectedCategory,
+      title: name,
+      chapters: [],
+    };
+
+    setBooks(previous => [...previous, newBook]);
+  };
+
+  const addChapter = (bookId, title) => {
+    const name = title.trim();
+    if (!name) return;
+
+    const chapter = {
+      id: Date.now().toString(),
+      title: name,
+      babs: [],
+    };
+
+    setBooks(previous =>
+      previous.map(book =>
+        book.id === bookId
+          ? { ...book, chapters: [...book.chapters, chapter] }
+          : book
+      )
+    );
+  };
+
+  const addBab = (bookId, chapterId, title) => {
+    const name = title.trim();
+    if (!name) return;
+
+    const bab = {
+      id: Date.now().toString(),
+      title: name,
+      lessons: [],
+    };
+
+    setBooks(previous =>
+      previous.map(book =>
+        book.id === bookId
+          ? {
+              ...book,
+              chapters: book.chapters.map(chapter =>
+                chapter.id === chapterId
+                  ? { ...chapter, babs: [...chapter.babs, bab] }
+                  : chapter
+              ),
+            }
+          : book
+      )
+    );
+  };
+
+  const addLesson = (bookId, chapterId, babId, title) => {
+    const name = title.trim();
+    if (!name) return;
+
+    const lesson = {
+      id: Date.now().toString(),
+      title: name,
+    };
+
+    setBooks(previous =>
+      previous.map(book =>
+        book.id === bookId
+          ? {
+              ...book,
+              chapters: book.chapters.map(chapter =>
+                chapter.id === chapterId
+                  ? {
+                      ...chapter,
+                      babs: chapter.babs.map(bab =>
+                        bab.id === babId
+                          ? {
+                              ...bab,
+                              lessons: [...bab.lessons, lesson],
+                            }
+                          : bab
+                      ),
+                    }
+                  : chapter
+              ),
+            }
+          : book
+      )
+    );
+  };
+
+  const saveNote = () => {
+    const value = noteText.trim();
+
+    if (!value) {
+      Alert.alert('خبرتیا', 'نوټ ولیکئ');
+      return;
+    }
+
+    setNotes(previous => [
+      ...previous,
       {
-        id: String(Date.now()),
-        name: newBook.trim(),
-        pdf: null,
-        chapters: [],
+        id: Date.now().toString(),
+        text: value,
+        date: new Date().toLocaleDateString(),
       },
     ]);
-    setNewBook('');
-  }
 
-  function updateBook(updated) {
-    updateBooks(currentBooks.map(b => b.id === updated.id ? updated : b));
-  }
+    setNoteText('');
+    Alert.alert('بریالی شو', 'نوټ خوندي شو');
+  };
 
-  function addChapter() {
-    if (!newChapter.trim()) {
-      Alert.alert('خبرتیا', 'د فصل نوم ولیکئ');
-      return;
-    }
-    updateBook({
-      ...currentBook,
-      chapters: [
-        ...currentBook.chapters,
-        { id: String(Date.now()), name: newChapter.trim(), babs: [] },
-      ],
-    });
-    setNewChapter('');
-  }
-
-  function addBab(chapterId) {
-    if (!newBab.trim()) {
-      Alert.alert('خبرتیا', 'د باب نوم ولیکئ');
-      return;
-    }
-    const chapters = currentBook.chapters.map(ch =>
-      ch.id === chapterId
-        ? { ...ch, babs: [...ch.babs, {
-            id: String(Date.now()), name: newBab.trim(), lessons: []
-          }] }
-        : ch
+  const deleteNote = id => {
+    setNotes(previous =>
+      previous.filter(note => note.id !== id)
     );
-    updateBook({ ...currentBook, chapters });
-    setNewBab('');
-  }
+  };
 
-  function addLesson(chapterId, babId) {
-    if (!newLesson.trim()) {
-      Alert.alert('خبرتیا', 'د درس نوم ولیکئ');
-      return;
+  const pickPDF = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/pdf',
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets?.length) {
+        const file = result.assets[0];
+
+        Alert.alert(
+          'PDF انتخاب شو',
+          file.name,
+          [
+            { text: 'سمه ده' },
+            {
+              text: 'شریکول',
+              onPress: async () => {
+                if (await Sharing.isAvailableAsync()) {
+                  await Sharing.shareAsync(file.uri);
+                }
+              },
+            },
+          ]
+        );
+      }
+    } catch (error) {
+      Alert.alert('خطا', 'PDF انتخاب نه شو');
     }
-    const chapters = currentBook.chapters.map(ch => {
-      if (ch.id !== chapterId) return ch;
-      return {
-        ...ch,
-        babs: ch.babs.map(b =>
-          b.id === babId
-            ? { ...b, lessons: [...b.lessons, {
-                id: String(Date.now()), name: newLesson.trim()
-              }] }
-            : b
-        ),
-      };
-    });
-    updateBook({ ...currentBook, chapters });
-    setNewLesson('');
-  }
+  };
 
-  function removeBook(id) {
-    Alert.alert('د کتاب حذفول', 'ایا دا کتاب حذف کړئ؟', [
+  const addTasbeeh = () => {
+    setTasbeeh(value => value + 1);
+  };
+
+  const resetTasbeeh = () => {
+    Alert.alert('ذکر صفر کول', 'ایا شمېر صفر کړئ؟', [
       { text: 'نه', style: 'cancel' },
       {
-        text: 'هو، حذف یې کړه',
-        style: 'destructive',
-        onPress: () => {
-          updateBooks(currentBooks.filter(b => b.id !== id));
-          setBookId(null);
-        },
+        text: 'هو',
+        onPress: () => setTasbeeh(0),
       },
     ]);
-  }
+  };
 
-  function back() {
-    if (bookId) setBookId(null);
-    else if (category) setCategory(null);
-    else if (scholar) setScholar(null);
-  }
+  const addPrayerTime = (prayer, time) => {
+    setSettings(previous => ({
+      ...previous,
+      prayerTimes: {
+        ...(previous.prayerTimes || {}),
+        [prayer]: time,
+      },
+    }));
+  };
 
-  function card(title, subtitle, action) {
+  const filteredBooks = books.filter(book => {
+    const text = search.toLowerCase();
+
     return (
-      <TouchableOpacity style={styles.card} onPress={action}>
-        <Text style={styles.cardTitle}>{title}</Text>
-        {!!subtitle && <Text style={styles.sub}>{subtitle}</Text>}
-        <Text style={styles.arrow}>←</Text>
-      </TouchableOpacity>
+      book.title.toLowerCase().includes(text) ||
+      book.scholar.toLowerCase().includes(text) ||
+      book.category.toLowerCase().includes(text) ||
+      book.chapters.some(chapter =>
+        chapter.title.toLowerCase().includes(text) ||
+        chapter.babs.some(bab =>
+          bab.title.toLowerCase().includes(text) ||
+          bab.lessons.some(lesson =>
+            lesson.title.toLowerCase().includes(text)
+          )
+        )
+      )
     );
-  }
+  });
 
-  function addBox(label, value, setValue, placeholder, action, buttonText) {
-    return (
-      <View style={styles.addBox}>
-        <Text style={styles.label}>{label}</Text>
-        <TextInput
-          style={styles.input}
-          value={value}
-          onChangeText={setValue}
-          placeholder={placeholder}
-          placeholderTextColor="#8A9B90"
-          textAlign="right"
+  const Button = ({ title, onPress, color = COLORS.green }) => (
+    <TouchableOpacity
+      onPress={onPress}
+      style={[styles.button, { backgroundColor: color }]}
+    >
+      <Text style={styles.buttonText}>{title}</Text>
+    </TouchableOpacity>
+  );
+
+  const Header = ({ title, back }) => (
+    <View style={styles.header}>
+      {back ? (
+        <TouchableOpacity onPress={back}>
+          <Text style={styles.backText}>⬅ شاته</Text>
+        </TouchableOpacity>
+      ) : null}
+
+      <Text style={styles.headerTitle}>{title}</Text>
+    </View>
+  );
+
+  const Card = ({ title, subtitle, onPress }) => (
+    <TouchableOpacity
+      style={styles.card}
+      onPress={onPress}
+      activeOpacity={0.8}
+    >
+      <Text style={styles.cardTitle}>{title}</Text>
+
+      {subtitle ? (
+        <Text style={styles.cardSubtitle}>{subtitle}</Text>
+      ) : null}
+    </TouchableOpacity>
+  );
+  const homePage = () => (
+    <>
+      <Header title="اسلامي علمي کتابتون" />
+
+      <View style={styles.intro}>
+        <Text style={styles.introTitle}>
+          اسلامي علمي کتابتون
+        </Text>
+        <Text style={styles.introSubtitle}>
+          د علماؤ کرامو درسونه او کتابونه
+        </Text>
+      </View>
+
+      <Text style={styles.sectionTitle}>علماء کرام</Text>
+
+      {scholars.map((scholar, index) => (
+        <Card
+          key={index}
+          title={scholar}
+          subtitle="کتابونه، درسونه او علمي آثار"
+          onPress={() => {
+            setSelectedScholar(scholar);
+            setPage('categories');
+          }}
         />
-        <TouchableOpacity style={styles.addButton} onPress={action}>
-          <Text style={styles.addText}>{buttonText}</Text>
-        </TouchableOpacity>
-      </View>
+      ))}
+
+      <Button
+        title="➕ نوی عالم اضافه کړئ"
+        onPress={() => setPage('addScholar')}
+      />
+
+      <Button
+        title="🔍 د کتابتون لټون"
+        onPress={() => setPage('search')}
+      />
+
+      <Button
+        title="📝 زما نوټونه"
+        onPress={() => setPage('notes')}
+      />
+
+      <Button
+        title="📚 PDF کتابونه"
+        onPress={() => setPage('pdf')}
+      />
+
+      <Button
+        title="📿 ذکر او تسبیح"
+        onPress={() => setPage('tasbeeh')}
+      />
+
+      <Button
+        title="🕌 د لمانځه وختونه"
+        onPress={() => setPage('prayer')}
+      />
+
+      <Button
+        title="🌅 سهار او ماښام اذکار"
+        onPress={() => setPage('adhkar')}
+      />
+
+      <Button
+        title="⚙️ تنظیمات"
+        onPress={() => setPage('settings')}
+      />
+    </>
+  );
+
+  const categoriesPage = () => (
+    <>
+      <Header
+        title="علمي برخې"
+        back={() => setPage('home')}
+      />
+
+      <Text style={styles.sectionTitle}>
+        {selectedScholar}
+      </Text>
+
+      {CATEGORIES.map((category, index) => (
+        <Card
+          key={index}
+          title={category}
+          onPress={() => {
+            setSelectedCategory(category);
+            setPage('books');
+          }}
+        />
+      ))}
+
+      <Button
+        title="📤 د عالم نوم شریک کړئ"
+        onPress={() => shareText('عالم', selectedScholar)}
+      />
+
+      <Button
+        title="🗑 عالم حذف کړئ"
+        color={COLORS.red}
+        onPress={() => deleteScholar(selectedScholar)}
+      />
+    </>
+  );
+
+  const booksPage = () => {
+    const list = books.filter(
+      book =>
+        book.scholar === selectedScholar &&
+        book.category === selectedCategory
     );
-  }
 
-  return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#071B16" />
+    return (
+      <>
+        <Header
+          title="کتابونه"
+          back={() => setPage('categories')}
+        />
 
-      <View style={styles.header}>
-        <Text style={styles.logo}>میراث اسلام</Text>
-        <Text style={styles.headerSub}>اسلامي علمي کتابتون</Text>
-      </View>
-<TouchableOpacity
-  onPress={() => setScreen('settings')}
-  style={{ marginTop: 10, backgroundColor: '#B99545', padding: 9, borderRadius: 8 }}
->
-  <Text style={{ color: '#07130F', fontWeight: 'bold' }}>
-    ⚙️ تنظیمات
-  </Text>
-</TouchableOpacity>
-      {(scholar || category || bookId) && (
-        <TouchableOpacity style={styles.back} onPress={back}>
-          <Text style={styles.backText}>→ شاته تګ</Text>
-        </TouchableOpacity>
-      )}
+        {list.map(book => (
+          <Card
+            key={book.id}
+            title={book.title}
+            subtitle="د کتاب فصلونه"
+            onPress={() => {
+              setSelectedBook(book);
+              setPage('chapters');
+            }}
+          />
+        ))}
 
-      <ScrollView contentContainerStyle={styles.content}>
-       {screen === 'settings' && (
-  <View style={styles.addBox}>
-    <Text style={styles.heading}>⚙️ تنظیمات</Text>
-
-    <Text style={styles.label}>د اپلیکیشن ژبه</Text>
-
-    {['پښتو', 'فارسي', 'English'].map(lang => (
-      <TouchableOpacity
-        key={lang}
-        style={styles.addButton}
-        onPress={() => setLanguage(lang)}
-      >
-        <Text style={styles.addText}>
-          {language === lang ? '✓ ' : ''}
-          {lang}
-        </Text>
-      </TouchableOpacity>
-    ))}
-<Text style={styles.heading}>🌅 سهارني اذکار</Text>
-
-{[
-  'آیت الکرسي',
-  'سورة الإخلاص',
-  'سورة الفلق',
-  'سورة الناس',
-  'أصبحنا وأصبح الملك لله',
-  'سبحان الله وبحمده'
-].map((item, index) => (
-  <Text key={index} style={styles.lesson}>
-    {index + 1}. {item}
-  </Text>
-))}
-
-<Text style={styles.heading}>🌙 ماښامني اذکار</Text>
-
-{[
-  'آیت الکرسي',
-  'سورة الإخلاص',
-  'سورة الفلق',
-  'سورة الناس',
-  'أمسينا وأمسى الملك لله',
-  'أستغفر الله وأتوب إليه'
-].map((item, index) => (
-  <Text key={index} style={styles.lesson}>
-    {index + 1}. {item}
-  </Text>
-))}
-    <Text style={styles.label}>د لمانځه وختونه</Text>
-
-    {[
-      ['فجر', 'fajr'],
-      ['ظهر', 'dhuhr'],
-      ['عصر', 'asr'],
-      ['مغرب', 'maghrib'],
-      ['عشاء', 'isha'],
-    ].map(([name, id]) => (
-      <View key={id}>
-        <Text style={styles.label}>
-          {name}: {prayerTimes[id]}
-        </Text>
         <TextInput
           style={styles.input}
-          value={prayerTimes[id]}
-          placeholder="05:00"
-          onChangeText={value =>
-            setPrayerTimes(old => ({ ...old, [id]: value }))
+          placeholder="د نوي کتاب نوم ولیکئ"
+          placeholderTextColor={COLORS.gray}
+          value={newName}
+          onChangeText={setNewName}
+        />
+
+        <Button
+          title="➕ کتاب خوندي کړئ"
+          onPress={() => {
+            addBook(newName);
+            setNewName('');
+          }}
+        />
+      </>
+    );
+  };
+
+  const chaptersPage = () => (
+    <>
+      <Header
+        title={selectedBook?.title || 'فصلونه'}
+        back={() => setPage('books')}
+      />
+
+      {(selectedBook?.chapters || []).map(chapter => (
+        <Card
+          key={chapter.id}
+          title={chapter.title}
+          subtitle="بابونه"
+          onPress={() => {
+            setSelectedChapter(chapter);
+            setPage('babs');
+          }}
+        />
+      ))}
+
+      <TextInput
+        style={styles.input}
+        placeholder="د نوي فصل نوم"
+        placeholderTextColor={COLORS.gray}
+        value={newName}
+        onChangeText={setNewName}
+      />
+
+      <Button
+        title="➕ فصل اضافه کړئ"
+        onPress={() => {
+          if (!newName.trim()) return;
+
+          addChapter(selectedBook.id, newName);
+          setNewName('');
+        }}
+      />
+    </>
+  );
+
+  const babsPage = () => (
+    <>
+      <Header
+        title="بابونه"
+        back={() => setPage('chapters')}
+      />
+
+      {(selectedChapter?.babs || []).map(bab => (
+        <Card
+          key={bab.id}
+          title={bab.title}
+          subtitle="درسونه"
+          onPress={() => {
+            setSelectedBab(bab);
+            setPage('lessons');
+          }}
+        />
+      ))}
+
+      <TextInput
+        style={styles.input}
+        placeholder="د نوي باب نوم"
+        placeholderTextColor={COLORS.gray}
+        value={newName}
+        onChangeText={setNewName}
+      />
+
+      <Button
+        title="➕ باب اضافه کړئ"
+        onPress={() => {
+          if (!newName.trim()) return;
+
+          addBab(
+            selectedBook.id,
+            selectedChapter.id,
+            newName
+          );
+
+          setNewName('');
+        }}
+      />
+    </>
+  );
+
+  const lessonsPage = () => (
+    <>
+      <Header
+        title="درسونه"
+        back={() => setPage('babs')}
+      />
+
+      {(selectedBab?.lessons || []).map((lesson, index) => (
+        <View key={lesson.id} style={styles.card}>
+          <Text style={styles.cardTitle}>
+            {index + 1}. {lesson.title}
+          </Text>
+
+          <Button
+            title="📤 درس شریک کړئ"
+            onPress={() => shareText('درس', lesson.title)}
+          />
+        </View>
+      ))}
+
+      <TextInput
+        style={styles.input}
+        placeholder="د نوي درس نوم"
+        placeholderTextColor={COLORS.gray}
+        value={newName}
+        onChangeText={setNewName}
+      />
+
+      <Button
+        title="➕ درس اضافه کړئ"
+        onPress={() => {
+          if (!newName.trim()) return;
+
+          addLesson(
+            selectedBook.id,
+            selectedChapter.id,
+            selectedBab.id,
+            newName
+          );
+
+          setNewName('');
+        }}
+      />
+    </>
+  );
+
+  const addScholarPage = () => (
+    <>
+      <Header
+        title="نوی عالم"
+        back={() => setPage('home')}
+      />
+
+      <TextInput
+        style={styles.input}
+        placeholder="د عالم بشپړ نوم ولیکئ"
+        placeholderTextColor={COLORS.gray}
+        value={newName}
+        onChangeText={setNewName}
+      />
+
+      <Button
+        title="عالم خوندي کړئ"
+        onPress={() => {
+          addScholar();
+          setPage('home');
+        }}
+      />
+    </>
+  );
+
+  const searchPage = () => (
+    <>
+      <Header
+        title="د کتابتون لټون"
+        back={() => setPage('home')}
+      />
+
+      <TextInput
+        style={styles.input}
+        placeholder="د عالم، کتاب، فصل یا درس نوم"
+        placeholderTextColor={COLORS.gray}
+        value={search}
+        onChangeText={setSearch}
+      />
+
+      {filteredBooks.map(book => (
+        <Card
+          key={book.id}
+          title={book.title}
+          subtitle={`${book.scholar} - ${book.category}`}
+          onPress={() => {
+            setSelectedScholar(book.scholar);
+            setSelectedCategory(book.category);
+            setSelectedBook(book);
+            setPage('chapters');
+          }}
+        />
+      ))}
+    </>
+  );
+
+  const notesPage = () => (
+    <>
+      <Header
+        title="زما نوټونه"
+        back={() => setPage('home')}
+      />
+
+      <TextInput
+        style={[styles.input, styles.noteInput]}
+        placeholder="خپل نوټ دلته ولیکئ..."
+        placeholderTextColor={COLORS.gray}
+        multiline
+        value={noteText}
+        onChangeText={setNoteText}
+      />
+
+      <Button
+        title="💾 نوټ خوندي کړئ"
+        onPress={saveNote}
+      />
+
+      {notes.map(note => (
+        <View key={note.id} style={styles.card}>
+          <Text style={styles.cardSubtitle}>{note.date}</Text>
+
+          <Text style={styles.cardTitle}>{note.text}</Text>
+
+          <Button
+            title="📤 شریکول"
+            onPress={() => shareText('زما نوټ', note.text)}
+          />
+
+          <Button
+            title="🗑 حذف"
+            color={COLORS.red}
+            onPress={() => deleteNote(note.id)}
+          />
+        </View>
+      ))}
+    </>
+  );
+
+  const pdfPage = () => (
+    <>
+      <Header
+        title="PDF کتابونه"
+        back={() => setPage('home')}
+      />
+
+      <Text style={styles.cardSubtitle}>
+        له خپل موبایل څخه PDF کتاب انتخاب او شریک کړئ.
+      </Text>
+
+      <Button
+        title="📚 PDF انتخاب کړئ"
+        onPress={pickPDF}
+      />
+    </>
+  );
+
+  const tasbeehPage = () => (
+    <>
+      <Header
+        title="ذکر او تسبیح"
+        back={() => setPage('home')}
+      />
+
+      <View style={styles.tasbeehBox}>
+        <Text style={styles.sectionTitle}>د ذکر شمېر</Text>
+
+        <Text style={styles.tasbeehNumber}>{tasbeeh}</Text>
+
+        <TouchableOpacity
+          style={styles.tasbeehButton}
+          onPress={addTasbeeh}
+        >
+          <Text style={styles.tasbeehButtonText}>ذکر</Text>
+        </TouchableOpacity>
+
+        <Button
+          title="شمېر صفر کړئ"
+          color={COLORS.red}
+          onPress={resetTasbeeh}
+        />
+      </View>
+    </>
+  );
+
+  const prayerPage = () => (
+    <>
+      <Header
+        title="د لمانځه وختونه"
+        back={() => setPage('home')}
+      />
+
+      {['سهار', 'ماسپښین', 'مازدیګر', 'ماښام', 'ماخوستن'].map(prayer => (
+        <View key={prayer} style={styles.card}>
+          <Text style={styles.cardTitle}>{prayer}</Text>
+
+          <TextInput
+            style={styles.input}
+            placeholder="وخت ولیکئ، لکه 05:30"
+            placeholderTextColor={COLORS.gray}
+            value={settings.prayerTimes?.[prayer] || ''}
+            onChangeText={time => addPrayerTime(prayer, time)}
+          />
+        </View>
+      ))}
+
+      <Text style={styles.cardSubtitle}>
+        یادونه: دا وختونه په لاس داخلېږي؛ اتومات محاسبه نه کوي.
+      </Text>
+    </>
+  );
+
+  const adhkarPage = () => (
+    <>
+      <Header
+        title="سهار او ماښام اذکار"
+        back={() => setPage('home')}
+      />
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>سهارني اذکار</Text>
+
+        <Text style={styles.cardSubtitle}>
+          سُبْحَانَ اللَّهِ وَبِحَمْدِهِ
+        </Text>
+
+        <Text style={styles.cardSubtitle}>
+          سُبْحَانَ اللَّهِ الْعَظِيمِ
+        </Text>
+
+        <Button
+          title="اذکار شریک کړئ"
+          onPress={() =>
+            shareText(
+              'سهارني اذکار',
+              'سُبْحَانَ اللَّهِ وَبِحَمْدِهِ\nسُبْحَانَ اللَّهِ الْعَظِيمِ'
+            )
           }
         />
       </View>
-    ))}
 
-    <TouchableOpacity
-      style={styles.smallButton}
-      onPress={() => setScreen('home')}
-    >
-      <Text style={styles.addText}>بېرته کتابتون ته</Text>
-    </TouchableOpacity>
-  </View>
-)}
-      {screen !== 'settings' && !scholar && (
-          <>
-            <Text style={styles.heading}>د علماوو کتابتون</Text>
-            <Text style={styles.description}>یو عالم انتخاب کړئ</Text>
-            {scholars.map(item =>
-              card(item, 'کتابونه او درسونه', () => setScholar(item))
-            )}
-          </>
-        )}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>ماښامني اذکار</Text>
 
-        {scholar && !category && (
-          <>
-            <Text style={styles.heading}>د عالم کتابتون</Text>
-            <Text style={styles.description}>{scholar}</Text>
-            {categories.map(item =>
-              card(item, 'د دې برخې کتابونه', () => setCategory(item))
-            )}
-          </>
-        )}
+        <Text style={styles.cardSubtitle}>
+          أَسْتَغْفِرُ اللَّهَ وَأَتُوبُ إِلَيْهِ
+        </Text>
 
-        {scholar && category && !bookId && (
-          <>
-            <Text style={styles.heading}>{category}</Text>
-            <Text style={styles.description}>{scholar}</Text>
+        <Text style={styles.cardSubtitle}>
+          لَا إِلَهَ إِلَّا اللَّهُ
+        </Text>
 
-            {addBox(
-              'نوی کتاب (اختیاري)',
-              newBook,
-              setNewBook,
-              'د کتاب نوم ولیکئ',
-              addBook,
-              '＋ کتاب اضافه کړه'
-            )}
-
-            <Text style={styles.sectionTitle}>کتابونه</Text>
-            {currentBooks.length === 0
-              ? <Text style={styles.empty}>تر اوسه کتاب نه دی اضافه شوی. دا برخه تشه هم پاتې کېدای شي.</Text>
-              : currentBooks.map(item => (
-                <View style={styles.bookRow} key={item.id}>
-                  <TouchableOpacity
-                    style={styles.bookName}
-                    onPress={() => setBookId(item.id)}
-                  >
-                    <Text style={styles.cardTitle}>📚 {item.name}</Text>
-                    <Text style={styles.sub}>د کتاب جزئیات پرانیزئ</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => removeBook(item.id)}>
-                    <Text style={styles.delete}>حذف</Text>
-                  </TouchableOpacity>
-                </View>
-              ))
-            }
-          </>
-        )}
-
-        {currentBook && (
-          <>
-            <Text style={styles.heading}>{currentBook.name}</Text>
-            <Text style={styles.description}>{category}</Text>
-
-          <View style={styles.addBox}>
-  <Text style={styles.label}>د کتاب PDF (اختیاري)</Text>
-
-  <TouchableOpacity
-    style={styles.addButton}
-    onPress={choosePDF}
-  >
-    <Text style={styles.addText}>
-      📄 د PDF کتاب انتخابول
-    </Text>
-  </TouchableOpacity>
-
-  <Text style={styles.empty}>
-    {pdfFile ? pdfFile.name : 'تر اوسه PDF نه دی انتخاب شوی'}
-  </Text>
-
-  <TouchableOpacity
-    style={styles.smallButton}
-    onPress={openPDF}
-  >
-    <Text style={styles.addText}>
-      📖 PDF کتاب پرانیزئ
-    </Text>
-  </TouchableOpacity>
-</View> 
-            {addBox(
-              'نوی فصل (اختیاري)',
-              newChapter,
-              setNewChapter,
-              'د فصل نوم ولیکئ',
-              addChapter,
-              '＋ فصل اضافه کړه'
-            )}
-
-            <Text style={styles.sectionTitle}>فصلونه</Text>
-
-            {currentBook.chapters.length === 0 && (
-              <Text style={styles.empty}>
-                فصلونه نشته. کتاب بې له فصله هم کار کوي.
-              </Text>
-            )}
-
-            {currentBook.chapters.map(chapter => (
-              <View style={styles.chapterBox} key={chapter.id}>
-                <Text style={styles.chapterTitle}>📖 {chapter.name}</Text>
-
-                <Text style={styles.label}>نوی باب (اختیاري)</Text>
-                <TextInput
-                  style={styles.input}
-                  value={newBab}
-                  onChangeText={setNewBab}
-                  placeholder="د باب نوم ولیکئ"
-                  placeholderTextColor="#8A9B90"
-                  textAlign="right"
-                />
-                <TouchableOpacity
-                  style={styles.smallButton}
-                  onPress={() => addBab(chapter.id)}
-                >
-                  <Text style={styles.addText}>＋ باب اضافه کړه</Text>
-                </TouchableOpacity>
-
-                {chapter.babs.length === 0 && (
-                  <Text style={styles.empty}>بابونه نشته؛ دا فصل همداسې پاتې کېدای شي.</Text>
-                )}
-
-                {chapter.babs.map(bab => (
-                  <View style={styles.babBox} key={bab.id}>
-                    <Text style={styles.babTitle}>📁 {bab.name}</Text>
-
-                    <Text style={styles.label}>نوی آډیو درس (اختیاري)</Text>
-                    <TextInput
-                      style={styles.input}
-                      value={newLesson}
-                      onChangeText={setNewLesson}
-                      placeholder="د درس نوم ولیکئ"
-                      placeholderTextColor="#8A9B90"
-                      textAlign="right"
-                    />
-                    <TouchableOpacity
-                      style={styles.smallButton}
-                      onPress={() => addLesson(chapter.id, bab.id)}
-                    >
-                      <Text style={styles.addText}>＋ درس اضافه کړه</Text>
-                    </TouchableOpacity>
-
-                    {bab.lessons.length === 0 && (
-                      <Text style={styles.empty}>آډیو درس نشته؛ باب تش هم پاتې کېدای شي.</Text>
-                    )}
-
-                    {bab.lessons.map(lesson => (
-                      <Text style={styles.lesson} key={lesson.id}>
-                        🎧 {lesson.name}
-                      </Text>
-                    ))}
-                  </View>
-                ))}
-              </View>
-            ))}
-          </>
-        )}
-      </ScrollView>
-
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>میراث اسلام • اسلامي علمي کتابتون</Text>
+        <Button
+          title="اذکار شریک کړئ"
+          onPress={() =>
+            shareText(
+              'ماښامني اذکار',
+              'أَسْتَغْفِرُ اللَّهَ وَأَتُوبُ إِلَيْهِ\nلَا إِلَهَ إِلَّا اللَّهُ'
+            )
+          }
+        />
       </View>
+    </>
+  );
+
+  const settingsPage = () => (
+    <>
+      <Header
+        title="تنظیمات"
+        back={() => setPage('home')}
+      />
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>
+          اسلامي علمي کتابتون
+        </Text>
+
+        <Text style={styles.cardSubtitle}>
+          د علماؤ کرامو درسونه او کتابونه
+        </Text>
+
+        <Text style={styles.cardSubtitle}>نسخه: 1.0.0</Text>
+      </View>
+
+      <Button
+        title="📤 اپلیکیشن شریک کړئ"
+        onPress={() =>
+          shareText(
+            'اسلامي علمي کتابتون',
+            'د علماؤ کرامو درسونه او کتابونه'
+          )
+        }
+      />
+    </>
+  );
+
+  const renderPage = () => {
+    switch (page) {
+      case 'home':
+        return homePage();
+      case 'categories':
+        return categoriesPage();
+      case 'books':
+        return booksPage();
+      case 'chapters':
+        return chaptersPage();
+      case 'babs':
+        return babsPage();
+      case 'lessons':
+        return lessonsPage();
+      case 'addScholar':
+        return addScholarPage();
+      case 'search':
+        return searchPage();
+      case 'notes':
+        return notesPage();
+      case 'pdf':
+        return pdfPage();
+      case 'tasbeeh':
+        return tasbeehPage();
+      case 'prayer':
+        return prayerPage();
+      case 'adhkar':
+        return adhkarPage();
+      case 'settings':
+        return settingsPage();
+      default:
+        return homePage();
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      <StatusBar
+        backgroundColor={COLORS.background}
+        barStyle="light-content"
+      />
+
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        {renderPage()}
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#07130F' },
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+
+  scroll: {
+    flex: 1,
+  },
+
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 40,
+  },
+
   header: {
-    backgroundColor: '#0B2B20', paddingTop: 18, paddingBottom: 18,
-    alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#B99545',
+    backgroundColor: COLORS.card,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 18,
+    borderBottomWidth: 2,
+    borderBottomColor: COLORS.gold,
   },
-  logo: { color: '#E5C36B', fontSize: 27, fontWeight: 'bold' },
-  headerSub: { color: '#D8D0B8', fontSize: 13, marginTop: 5 },
-  back: { padding: 13, alignItems: 'flex-end' },
-  backText: { color: '#E5C36B', fontSize: 15 },
-  content: { padding: 16, paddingBottom: 35 },
-  heading: {
-    color: '#E5C36B', fontSize: 22, fontWeight: 'bold',
-    textAlign: 'center', marginTop: 8, marginBottom: 10,
+
+  headerTitle: {
+    color: COLORS.gold,
+    fontSize: 22,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginTop: 8,
   },
-  description: { color: '#B9C9BE', textAlign: 'center', fontSize: 13, marginBottom: 18 },
+
+  backText: {
+    color: COLORS.gold,
+    fontSize: 16,
+    textAlign: 'left',
+  },
+
+  intro: {
+    backgroundColor: COLORS.card,
+    padding: 22,
+    borderRadius: 15,
+    marginBottom: 20,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.gold,
+  },
+
+  introTitle: {
+    color: COLORS.gold,
+    fontSize: 25,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+
+  introSubtitle: {
+    color: COLORS.white,
+    fontSize: 15,
+    marginTop: 10,
+    textAlign: 'center',
+  },
+
+  sectionTitle: {
+    color: COLORS.gold,
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginTop: 12,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+
   card: {
-    backgroundColor: '#10271E', borderWidth: 1, borderColor: '#806B3C',
-    borderRadius: 12, padding: 17, marginBottom: 11,
+    backgroundColor: COLORS.card,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#315442',
   },
-  cardTitle: { color: '#F0D58A', fontSize: 16, fontWeight: 'bold', textAlign: 'right' },
-  sub: { color: '#AAB9AE', fontSize: 12, textAlign: 'right', marginTop: 6 },
-  arrow: { color: '#D7B65E', fontSize: 17, marginTop: 5, textAlign: 'left' },
-  addBox: {
-    backgroundColor: '#10271E', borderRadius: 12, padding: 15,
-    borderWidth: 1, borderColor: '#806B3C', marginBottom: 18,
+
+  cardTitle: {
+    color: COLORS.gold,
+    fontSize: 17,
+    fontWeight: 'bold',
+    textAlign: 'right',
+    marginBottom: 6,
   },
-  label: { color: '#E5C36B', fontSize: 15, textAlign: 'right', marginBottom: 9, marginTop: 8 },
-  input: { backgroundColor: '#F1F0E8', color: '#17231C', borderRadius: 8, padding: 11, fontSize: 14 },
-  addButton: { backgroundColor: '#B99545', borderRadius: 8, padding: 12, marginTop: 10, alignItems: 'center' },
-  smallButton: { backgroundColor: '#806B3C', borderRadius: 8, padding: 10, marginTop: 8, alignItems: 'center' },
-  addText: { color: '#102016', fontSize: 14, fontWeight: 'bold' },
-  sectionTitle: { color: '#E5C36B', fontSize: 17, textAlign: 'right', marginBottom: 12 },
-  empty: { color: '#B9C9BE', textAlign: 'center', padding: 10, fontSize: 13 },
-  bookRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#10271E', borderRadius: 10, borderWidth: 1, borderColor: '#806B3C', padding: 12, marginBottom: 10 },
-  bookName: { flex: 1, padding: 5 },
-  delete: { color: '#F18B80', padding: 8 },
-  chapterBox: { backgroundColor: '#10271E', borderRadius: 12, borderWidth: 1, borderColor: '#806B3C', padding: 13, marginBottom: 14 },
-  chapterTitle: { color: '#E5C36B', fontSize: 17, fontWeight: 'bold', textAlign: 'right', marginBottom: 8 },
-  babBox: { backgroundColor: '#18352A', borderRadius: 9, padding: 11, marginTop: 12 },
-  babTitle: { color: '#F0D58A', fontSize: 15, fontWeight: 'bold', textAlign: 'right' },
-  lesson: { color: '#D8E3D9', textAlign: 'right', padding: 9, borderBottomWidth: 1, borderBottomColor: '#52685A' },
-  footer: { padding: 12, borderTopWidth: 1, borderTopColor: '#806B3C', alignItems: 'center' },
-  footerText: { color: '#B99545', fontSize: 12 },
+
+  cardSubtitle: {
+    color: COLORS.white,
+    fontSize: 14,
+    textAlign: 'right',
+    marginTop: 5,
+  },
+
+  button: {
+    backgroundColor: COLORS.green,
+    padding: 15,
+    borderRadius: 10,
+    marginVertical: 6,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.gold,
+  },
+
+  buttonText: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+
+  input: {
+    backgroundColor: '#183126',
+    color: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.gold,
+    borderRadius: 10,
+    padding: 13,
+    marginVertical: 8,
+    textAlign: 'right',
+    fontSize: 16,
+  },
+
+  noteInput: {
+    minHeight: 120,
+    textAlignVertical: 'top',
+  },
+
+  tasbeehBox: {
+    backgroundColor: COLORS.card,
+    padding: 22,
+    borderRadius: 15,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.gold,
+  },
+
+  tasbeehNumber: {
+    color: COLORS.gold,
+    fontSize: 55,
+    fontWeight: 'bold',
+    marginVertical: 20,
+  },
+
+  tasbeehButton: {
+    backgroundColor: COLORS.green,
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: COLORS.gold,
+    marginBottom: 20,
+  },
+
+  tasbeehButtonText: {
+    color: COLORS.white,
+    fontSize: 25,
+    fontWeight: 'bold',
+  },
 });
