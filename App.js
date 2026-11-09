@@ -1,4 +1,4 @@
- 
+  
 import React, { useState, useEffect } from 'react';
 
 import {
@@ -1417,267 +1417,225 @@ export default function App() {
       >
 
         {screen === 'home' && (
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.homeContent}
-          >
+          <View style={styles.homeScreen}>
+            <View style={styles.homeContent}>
+              {/* د سرپاڼې ښکلی اسلامي سرلیک */}
+              <View style={styles.homeHeroHeader}>
+                <View style={styles.headerTopActions}>
+                  <TouchableOpacity
+                    style={styles.headerActionButton}
+                    onPress={() => setScreen('settings')}
+                    accessibilityLabel="تنظیمات"
+                  >
+                    <Text style={styles.headerActionIcon}>⚙</Text>
+                  </TouchableOpacity>
+                  <View style={styles.headerTopSpacer} />
+                  <TouchableOpacity
+                    style={styles.headerActionButton}
+                    onPress={() => setScreen('reminders')}
+                    accessibilityLabel="خبرتیاوې"
+                  >
+                    <Text style={styles.headerActionIcon}>♟</Text>
+                  </TouchableOpacity>
+                </View>
 
-            {/* سرلیک */}
-
-            <View style={styles.header}>
-              <View style={styles.headerDecoration}>
                 <Text style={styles.headerBismillah}>
                   بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
                 </Text>
-
-                <Text style={styles.logoTitle}>
-                  میراث اسلام
-                </Text>
-
+                <Text style={styles.logoTitle}>میراث اسلام</Text>
                 <Text style={styles.headerSubtitle}>
-                  د اسلامي علم، تاریخ او میراث کتابتون
+                  د قرآن او سنت د علمونو مرکز
                 </Text>
-
-                <View style={styles.headerLine} />
-
-                <Text style={styles.headerSmall}>
-                  قرآن • حدیث • سیرت • اسلامي علوم
-                </Text>
+                <View style={styles.headerOrnamentLine}>
+                  <Text style={styles.headerOrnament}>✦ ۞ ✦</Text>
+                </View>
               </View>
-            </View>
 
-            {/* د لمانځه وختونه */}
-
-            <View style={styles.prayerCard}>
-              <View style={styles.prayerHeader}>
-                <View>
-                  <Text style={styles.cardHeading}>
-                    د لمانځه وختونه
-                  </Text>
-
-                  <Text style={styles.smallMuted}>
-                    {settings.city || 'خپل موقعیت وټاکئ'}
-                  </Text>
+              {/* د لمانځه وختونه او لټون */}
+              <View style={styles.prayerCard}>
+                <View style={styles.prayerSearchRow}>
+                  <TouchableOpacity
+                    style={styles.homeSearchButton}
+                    onPress={() => setScreen('search')}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.homeSearchIcon}>⌕</Text>
+                    <Text style={styles.homeSearchPlaceholder}>پلټون...</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.prayerHeadingButton}
+                    onPress={() => setScreen('prayer')}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.prayerHeadingText}>اوقات الصلاة</Text>
+                    <Text style={styles.prayerHeadingIcon}>◷</Text>
+                  </TouchableOpacity>
                 </View>
 
+                <View style={styles.homePrayerDivider} />
+                <View style={styles.homePrayerList}>
+                  {PRAYERS.filter(prayer => prayer.key !== 'sunrise').map(prayer => (
+                    <TouchableOpacity
+                      key={prayer.key}
+                      style={styles.homePrayerItem}
+                      onPress={() => setScreen('prayer')}
+                      activeOpacity={0.75}
+                    >
+                      <Text style={styles.homePrayerIcon}>{prayer.icon}</Text>
+                      <Text style={styles.homePrayerName}>{prayer.title}</Text>
+                      <Text style={styles.homePrayerTime}>
+                        {prayerTimes ? formatTime(prayerTimes[prayer.key]) : '--:--'}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
                 <TouchableOpacity
                   onPress={refreshPrayerTimes}
-                  style={styles.refreshButton}
+                  style={styles.homePrayerRefresh}
+                  activeOpacity={0.8}
                 >
                   {locationLoading ? (
                     <ActivityIndicator color={COLORS.gold} />
                   ) : (
-                    <Text style={styles.refreshText}>
-                      ↻ تازه کول
+                    <Text style={styles.homePrayerRefreshText}>
+                      {settings.city || 'خپل موقعیت وټاکئ'}  ·  ↻ وختونه تازه کړئ
                     </Text>
                   )}
                 </TouchableOpacity>
               </View>
 
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.prayerRow}
-              >
-                {PRAYERS.map(prayer => (
-                  <View
-                    key={prayer.key}
-                    style={styles.prayerItem}
-                  >
-                    <Text style={styles.prayerIcon}>
-                      {prayer.icon}
-                    </Text>
-
-                    <Text style={styles.prayerName}>
-                      {prayer.title}
-                    </Text>
-
-                    <Text style={styles.prayerTime}>
-                      {prayerTimes
-                        ? formatTime(prayerTimes[prayer.key])
-                        : '--:--'}
-                    </Text>
-                  </View>
-                ))}
-              </ScrollView>
-
+              {/* د علماوو او مشایخو درسونه */}
               <TouchableOpacity
-                onPress={() => setScreen('prayer')}
-                style={styles.prayerMore}
+                style={styles.homeLessonsCard}
+                onPress={() => setScreen('scholars')}
+                activeOpacity={0.88}
               >
-                <Text style={styles.goldLink}>
-                  د لمانځه تنظیمات او معلومات
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* د علماوو کتابتون */}
-
-            <SectionTitle
-              title="د علماوو کتابتون"
-              action="ټول علما"
-              onAction={() => setScreen('scholars')}
-            />
-
-            <TouchableOpacity
-              style={styles.mainLibraryCard}
-              onPress={() => setScreen('scholars')}
-              activeOpacity={0.85}
-            >
-              <View style={styles.libraryDecoration}>
-                <Text style={styles.libraryIcon}>۞</Text>
-
-                <Text style={styles.libraryTitle}>
-                  د علماوو علمي میراث
-                </Text>
-
-                <Text style={styles.libraryDescription}>
-                  بیانونه، کتابونه، تفسیرونه او علمي درسونه
-                </Text>
-
-                <Text style={styles.libraryButton}>
-                  کتابتون ته داخل شئ ←
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            {/* شپږ علمي برخې */}
-
-            <SectionTitle title="علمي برخې" />
-
-            <View style={styles.categoryGrid}>
-              {SECTIONS.map((section, index) => {
-                const icons = [
-                  '۞',
-                  '◈',
-                  '⌘',
-                  '✧',
-                  '؟',
-                  '▤'
-                ];
-
-                return (
-                  <TouchableOpacity
-                    key={section}
-                    style={styles.categoryCard}
-                    onPress={() => openSection(section)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.categoryIcon}>
-                      {icons[index]}
-                    </Text>
-
-                    <Text style={styles.categoryTitle}>
-                      {section}
-                    </Text>
-
-                    <Text style={styles.categoryArrow}>
-                      ←
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {/* چټک لاسرسی */}
-
-            <SectionTitle title="چټک لاسرسی" />
-
-            <View style={styles.quickGrid}>
-              <ActionCard
-                title="زما نوټونه"
-                subtitle="خپل یادښتونه"
-                icon="✎"
-                onPress={() => setScreen('notes')}
-              />
-
-              <ActionCard
-                title="خوښ شوي"
-                subtitle="زما غوره درسونه"
-                icon="♡"
-                onPress={() => setScreen('favorites')}
-              />
-
-              <ActionCard
-                title="د سهار او ماښام اذکار"
-                subtitle="ورځني اذکار"
-                icon="۞"
-                onPress={() => setScreen('adhkarHome')}
-              />
-
-              <ActionCard
-                title="خبرتیاوې"
-                subtitle="د درسونو یادونې"
-                icon="♧"
-                onPress={() => setScreen('reminders')}
-              />
-
-              <ActionCard
-                title="لټون"
-                subtitle="کتابونه او درسونه"
-                icon="⌕"
-                onPress={() => setScreen('search')}
-              />
-
-              <ActionCard
-                title="تنظیمات"
-                subtitle="د اپلیکیشن تنظیمات"
-                icon="⚙"
-                onPress={() => setScreen('settings')}
-              />
-            </View>
-
-            {/* وروستي درسونه */}
-
-            <SectionTitle
-              title="وروستي درسونه"
-              action="ټول وګورئ"
-              onAction={() => setScreen('search')}
-            />
-
-            {globalItems.slice(0, 5).map(item => (
-              <TouchableOpacity
-                key={item.id}
-                style={styles.lessonCard}
-                onPress={() => openItem(item)}
-              >
-                <View style={styles.lessonTextBox}>
-                  <Text style={styles.lessonTitle}>
-                    {item.title}
-                  </Text>
-
-                  <Text style={styles.lessonDescription}>
-                    {item.scholar || item.section || 'عمومي درس'}
-                  </Text>
+                <View style={styles.homeLessonsArtwork}>
+                  <Text style={styles.homeBookGlow}>✧</Text>
+                  <Text style={styles.homeBookIcon}>📖</Text>
+                  <Text style={styles.homeBookStand}>⌁</Text>
                 </View>
-
-                <Text style={styles.lessonArrow}>‹</Text>
+                <View style={styles.homeLessonsText}>
+                  <Text style={styles.homeLessonsTitle}>دروس المشایخ</Text>
+                  <Text style={styles.homeLessonsSubtitle}>
+                    د علماوو او مشایخو علمي درسونه
+                  </Text>
+                  <View style={styles.homeLessonsButton}>
+                    <Text style={styles.homeLessonsButtonText}>درسونو ته داخل شئ  ▶</Text>
+                  </View>
+                </View>
               </TouchableOpacity>
-            ))}
 
-            {globalItems.length === 0 && (
-              <Text style={styles.emptyText}>
-                تر اوسه درسونه نه دي اضافه شوي.
-              </Text>
-            )}
+              {/* د کتابتون اړوند چټکې برخې */}
+              <View style={styles.homeShortcutGrid}>
+                <TouchableOpacity
+                  style={styles.homeShortcutCard}
+                  onPress={() => setScreen('favorites')}
+                  activeOpacity={0.82}
+                >
+                  <Text style={styles.homeShortcutIcon}>♥</Text>
+                  <Text style={styles.homeShortcutTitle}>خوښ شوي فایلونه</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.homeShortcutCard}
+                  onPress={() => openSection('سوالونه او ځوابونه')}
+                  activeOpacity={0.82}
+                >
+                  <Text style={styles.homeShortcutIcon}>▤</Text>
+                  <Text style={styles.homeShortcutTitle}>سوالات او جوابات</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.homeShortcutCard}
+                  onPress={() => openSection('عمومي درسونه او کتابونه')}
+                  activeOpacity={0.82}
+                >
+                  <Text style={styles.homeShortcutIcon}>▰</Text>
+                  <Text style={styles.homeShortcutTitle}>الکتب</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.homeShortcutCard}
+                  onPress={() => setScreen('search')}
+                  activeOpacity={0.82}
+                >
+                  <Text style={styles.homeShortcutIcon}>➤</Text>
+                  <Text style={styles.homeShortcutTitle}>د زده کړې مسیر</Text>
+                </TouchableOpacity>
+              </View>
 
-            {/* د کتابتون لاندې برخه */}
+              {/* اذکار او یادښتونه */}
+              <View style={styles.homeWideCardsRow}>
+                <TouchableOpacity
+                  style={styles.homeWideCard}
+                  onPress={() => setScreen('adhkarHome')}
+                  activeOpacity={0.82}
+                >
+                  <Text style={styles.homeWideIcon}>☾</Text>
+                  <View style={styles.homeWideTextBox}>
+                    <Text style={styles.homeWideTitle}>د سهار او ماښام اذکار</Text>
+                    <Text style={styles.homeWideSubtitle}>ورځني اذکار</Text>
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.homeWideCard}
+                  onPress={() => setScreen('notes')}
+                  activeOpacity={0.82}
+                >
+                  <Text style={styles.homeWideIcon}>▤</Text>
+                  <View style={styles.homeWideTextBox}>
+                    <Text style={styles.homeWideTitle}>زما نوټونه</Text>
+                    <Text style={styles.homeWideSubtitle}>شخصي یادښتونه</Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
 
-            <View style={styles.footer}>
-              <Text style={styles.footerLogo}>
-                میراث اسلام
-              </Text>
+              {/* ټولې علمي برخې هماغسې له پخواني سیستم سره تړلې دي */}
+              <View style={styles.homeSectionHeading}>
+                <Text style={styles.homeSectionHeadingText}>علمي برخې</Text>
+                <Text style={styles.homeSectionHeadingLine}>ــــــــــــــــــــــــ</Text>
+              </View>
+              <View style={styles.homeCategoriesGrid}>
+                {SECTIONS.map((section, index) => {
+                  const icons = ['۞', '◈', '⌘', '✧', '؟', '▤'];
+                  return (
+                    <TouchableOpacity
+                      key={section}
+                      style={styles.homeCategoryCard}
+                      onPress={() => openSection(section)}
+                      activeOpacity={0.82}
+                    >
+                      <Text style={styles.homeCategoryIcon}>{icons[index]}</Text>
+                      <Text style={styles.homeCategoryTitle}>{section}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
 
-              <Text style={styles.footerText}>
-                د علم، دعوت او اسلامي میراث خدمت
-              </Text>
-
-              <Text style={styles.footerSmall}>
-                ټول حقوق خوندي دي
-              </Text>
             </View>
 
-          </ScrollView>
+            {/* ثابت لاندې مینو؛ یوازې په کورپاڼه کې ښکاري */}
+            <View style={styles.homeBottomNav}>
+              <TouchableOpacity style={styles.homeNavItem} onPress={() => setScreen('scholars')}>
+                <Text style={styles.homeNavIcon}>◎</Text>
+                <Text style={styles.homeNavLabel}>کتابتون</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.homeNavItem} onPress={() => setScreen('adhkarHome')}>
+                <Text style={styles.homeNavIcon}>☾</Text>
+                <Text style={styles.homeNavLabel}>اذکار</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.homeNavItem} onPress={() => setScreen('notes')}>
+                <Text style={styles.homeNavIcon}>▤</Text>
+                <Text style={styles.homeNavLabel}>نوټونه</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.homeNavItem} onPress={() => setScreen('settings')}>
+                <Text style={styles.homeNavIcon}>⚙</Text>
+                <Text style={styles.homeNavLabel}>تنظیمات</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.homeNavItem, styles.homeNavItemActive]} onPress={() => setScreen('home')}>
+                <Text style={styles.homeNavIconActive}>⌂</Text>
+                <Text style={styles.homeNavLabelActive}>کور</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         )}
 
         {/* ==================================================
@@ -2789,248 +2747,524 @@ const styles = StyleSheet.create({
     fontSize: 14
   },
 
+  homeScreen: {
+    flex: 1,
+    backgroundColor: COLORS.background
+  },
+
   homeContent: {
-    paddingHorizontal: 15,
-    paddingBottom: 35
+    flex: 1,
+    justifyContent: 'space-evenly',
+    paddingHorizontal: 7,
+    paddingTop: 3,
+    paddingBottom: 3
   },
 
-  pageContent: {
-    paddingHorizontal: 16,
-    paddingTop: 15,
-    paddingBottom: 40
+  homeHeroHeader: {
+    minHeight: 92,
+    marginTop: 0,
+    marginBottom: 4,
+    paddingHorizontal: 10,
+    paddingTop: 3,
+    paddingBottom: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#032D1B',
+    borderWidth: 3,
+    borderColor: COLORS.gold,
+    borderTopLeftRadius: 145,
+    borderTopRightRadius: 145,
+    borderBottomLeftRadius: 27,
+    borderBottomRightRadius: 27,
+    overflow: 'hidden',
+    elevation: 9,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.42,
+    shadowRadius: 7
   },
 
-  header: {
-    marginTop: 12,
-    marginBottom: 18,
-    backgroundColor: COLORS.card,
+  headerTopActions: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2
+  },
+
+  headerActionButton: {
+    width: 27,
+    height: 27,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0A4A2D',
     borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 18,
-    padding: 20
+    borderColor: COLORS.gold
   },
 
-  headerDecoration: {
-    alignItems: 'center'
+  headerActionIcon: {
+    color: COLORS.gold,
+    fontSize: 17,
+    fontWeight: 'bold'
   },
+
+  headerTopSpacer: { flex: 1 },
 
   headerBismillah: {
     color: COLORS.goldLight,
-    fontSize: 19,
+    fontSize: 11,
     textAlign: 'center',
-    marginBottom: 13
+    marginBottom: 0
   },
 
   logoTitle: {
     color: COLORS.gold,
-    fontSize: 34,
+    fontSize: 25,
     fontWeight: 'bold',
-    textAlign: 'center'
+    textAlign: 'center',
+    textShadowColor: '#000000',
+    textShadowOffset: { width: 1, height: 2 },
+    textShadowRadius: 5
   },
 
   headerSubtitle: {
     color: COLORS.white,
-    fontSize: 13,
-    marginTop: 8,
+    fontSize: 10,
+    fontWeight: 'bold',
+    marginTop: 1,
     textAlign: 'center'
   },
 
-  headerLine: {
-    height: 1,
-    backgroundColor: COLORS.border,
-    width: '75%',
-    alignSelf: 'center',
-    marginVertical: 13
+  headerOrnamentLine: {
+    width: '76%',
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: COLORS.gold,
+    marginTop: 3,
+    paddingVertical: 0,
+    alignItems: 'center'
   },
 
-  headerSmall: {
-    color: COLORS.muted,
-    fontSize: 12,
-    textAlign: 'center'
+  headerOrnament: {
+    color: COLORS.gold,
+    fontSize: 13
   },
 
   prayerCard: {
-    backgroundColor: COLORS.card,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 15,
-    padding: 13,
-    marginBottom: 22
+    backgroundColor: '#032F1D',
+    borderWidth: 3,
+    borderColor: COLORS.gold,
+    borderRadius: 27,
+    padding: 5,
+    marginBottom: 4,
+    elevation: 6,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.35,
+    shadowRadius: 5
   },
 
-  prayerHeader: {
+  prayerSearchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 14
+    gap: 8
   },
 
-  cardHeading: {
-    color: COLORS.gold,
-    fontSize: 17,
-    fontWeight: 'bold',
-    textAlign: 'right',
-    marginBottom: 10
-  },
-
-  smallMuted: {
-    color: COLORS.muted,
-    fontSize: 12,
-    textAlign: 'right',
-    marginTop: 4
-  },
-
-  refreshButton: {
-    padding: 8,
-    backgroundColor: COLORS.card2,
-    borderRadius: 8
-  },
-
-  refreshText: {
-    color: COLORS.gold,
-    fontSize: 12
-  },
-
-  prayerRow: {
-    gap: 9,
-    paddingVertical: 4
-  },
-
-  prayerItem: {
-    width: 77,
-    backgroundColor: COLORS.card2,
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
+  homeSearchButton: {
+    flex: 1,
+    minHeight: 28,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: COLORS.border
+    borderColor: COLORS.gold,
+    backgroundColor: '#0A4A2D',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12
   },
 
-  prayerIcon: {
+  homeSearchIcon: {
+    color: COLORS.gold,
     fontSize: 19,
-    marginBottom: 5
+    marginRight: 5
   },
 
-  prayerName: {
-    color: COLORS.white,
-    fontSize: 11,
-    marginBottom: 7
+  homeSearchPlaceholder: {
+    color: COLORS.muted,
+    fontSize: 10
   },
 
-  prayerTime: {
+  prayerHeadingButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 4
+  },
+
+  prayerHeadingText: {
     color: COLORS.gold,
     fontSize: 12,
     fontWeight: 'bold'
   },
 
-  prayerMore: {
-    alignItems: 'center',
-    paddingTop: 12
-  },
-
-  sectionTitleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 13,
-    marginBottom: 12
-  },
-
-  sectionTitle: {
-    color: COLORS.gold,
+  prayerHeadingIcon: {
+    color: COLORS.goldLight,
     fontSize: 18,
+    marginLeft: 4
+  },
+
+  homePrayerDivider: {
+    height: 1,
+    backgroundColor: COLORS.gold,
+    opacity: 0.8,
+    marginTop: 3,
+    marginBottom: 2
+  },
+
+  homePrayerList: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'stretch'
+  },
+
+  homePrayerItem: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 3,
+    borderRightWidth: 1.5,
+    borderRightColor: COLORS.gold
+  },
+
+  homePrayerIcon: {
+    color: COLORS.gold,
+    fontSize: 15,
+    marginBottom: 0
+  },
+
+  homePrayerName: {
+    color: COLORS.white,
+    fontSize: 9,
+    fontWeight: 'bold',
+    marginBottom: 0
+  },
+
+  homePrayerTime: {
+    color: COLORS.white,
+    fontSize: 10,
+    fontWeight: 'bold'
+  },
+
+  homePrayerRefresh: {
+    alignItems: 'center',
+    paddingTop: 2,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border
+  },
+
+  homePrayerRefreshText: {
+    color: COLORS.goldLight,
+    fontSize: 8
+  },
+
+  homeLessonsCard: {
+    minHeight: 72,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#034126',
+    borderWidth: 3,
+    borderColor: COLORS.gold,
+    borderRadius: 31,
+    padding: 5,
+    marginBottom: 4,
+    overflow: 'hidden',
+    elevation: 7,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6
+  },
+
+  homeLessonsArtwork: {
+    flex: 0.95,
+    minHeight: 58,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#063720',
+    borderWidth: 1.5,
+    borderColor: COLORS.gold,
+    borderRadius: 75,
+    overflow: 'hidden'
+  },
+
+  homeBookGlow: {
+    color: COLORS.gold,
+    fontSize: 30,
+    position: 'absolute',
+    top: 8
+  },
+
+  homeBookIcon: {
+    fontSize: 30
+  },
+
+  homeBookStand: {
+    color: COLORS.gold,
+    fontSize: 20,
+    marginTop: -10
+  },
+
+  homeLessonsText: {
+    flex: 1.25,
+    alignItems: 'flex-end',
+    paddingHorizontal: 7
+  },
+
+  homeLessonsTitle: {
+    color: COLORS.gold,
+    fontSize: 16,
     fontWeight: 'bold',
     textAlign: 'right'
   },
 
-  goldLink: {
-    color: COLORS.goldLight,
-    fontSize: 12
+  homeLessonsSubtitle: {
+    color: COLORS.white,
+    fontSize: 9,
+    textAlign: 'right',
+    marginTop: 2,
+    marginBottom: 3
   },
 
-  mainLibraryCard: {
-    backgroundColor: COLORS.card2,
-    borderRadius: 17,
-    borderWidth: 1,
+  homeLessonsButton: {
+    backgroundColor: COLORS.gold,
+    borderRadius: 25,
+    paddingHorizontal: 8,
+    paddingVertical: 4
+  },
+
+  homeLessonsButtonText: {
+    color: COLORS.black,
+    fontSize: 8,
+    fontWeight: 'bold'
+  },
+
+  homeShortcutGrid: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    gap: 4,
+    marginBottom: 3
+  },
+
+  homeShortcutCard: {
+    flex: 1,
+    minHeight: 47,
+    backgroundColor: '#034126',
+    borderWidth: 3,
     borderColor: COLORS.gold,
-    padding: 19,
-    marginBottom: 20
+    borderRadius: 13,
+    paddingHorizontal: 2,
+    paddingVertical: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 5,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.32,
+    shadowRadius: 4
   },
 
-  libraryDecoration: {
-    alignItems: 'center'
-  },
-
-  libraryIcon: {
-    fontSize: 36,
+  homeShortcutIcon: {
     color: COLORS.gold,
-    marginBottom: 9
+    fontSize: 17,
+    marginBottom: 1
   },
 
-  libraryTitle: {
-    color: COLORS.goldLight,
-    fontSize: 21,
+  homeShortcutTitle: {
+    color: COLORS.white,
+    fontSize: 8,
     fontWeight: 'bold',
     textAlign: 'center'
   },
 
-  libraryDescription: {
-    color: COLORS.white,
-    fontSize: 12,
-    textAlign: 'center',
-    marginTop: 9
+  homeWideCardsRow: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    gap: 5,
+    marginBottom: 3
   },
 
-  libraryButton: {
+  homeWideCard: {
+    flex: 1,
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    backgroundColor: '#034126',
+    borderWidth: 3,
+    borderColor: COLORS.gold,
+    borderRadius: 13,
+    padding: 4,
+    elevation: 5,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.32,
+    shadowRadius: 4
+  },
+
+  homeWideIcon: {
     color: COLORS.gold,
-    fontSize: 14,
-    marginTop: 15,
+    fontSize: 22
+  },
+
+  homeWideTextBox: {
+    flex: 1,
+    alignItems: 'flex-end',
+    paddingHorizontal: 5
+  },
+
+  homeWideTitle: {
+    color: COLORS.goldLight,
+    fontSize: 9,
+    fontWeight: 'bold',
+    textAlign: 'right'
+  },
+
+  homeWideSubtitle: {
+    color: COLORS.muted,
+    fontSize: 7,
+    marginTop: 1,
+    textAlign: 'right'
+  },
+
+  homeSectionHeading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 2,
+    marginBottom: 2
+  },
+
+  homeSectionHeadingText: {
+    color: COLORS.gold,
+    fontSize: 11,
     fontWeight: 'bold'
   },
 
-  categoryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 10
+  homeSectionHeadingLine: {
+    color: COLORS.border,
+    fontSize: 12
   },
 
-  categoryCard: {
-    width: '48%',
-    minHeight: 115,
-    backgroundColor: COLORS.card,
+  homeCategoriesGrid: {
+    flexDirection: 'row-reverse',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 0
+  },
+
+  homeCategoryCard: {
+    width: '32%',
+    minHeight: 35,
+    backgroundColor: '#0A3D29',
     borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 13,
-    padding: 13,
+    borderColor: COLORS.gold,
+    borderRadius: 9,
+    padding: 3,
+    marginBottom: 3,
+    alignItems: 'center',
     justifyContent: 'center'
   },
 
-  categoryIcon: {
+  homeCategoryIcon: {
     color: COLORS.gold,
-    fontSize: 25,
-    textAlign: 'center',
-    marginBottom: 8
+    fontSize: 13,
+    marginBottom: 0
   },
 
-  categoryTitle: {
+  homeCategoryTitle: {
     color: COLORS.white,
-    fontSize: 13,
-    textAlign: 'center',
+    fontSize: 8,
+    fontWeight: 'bold',
+    textAlign: 'center'
+  },
+
+  homeSeeAll: {
+    color: COLORS.goldLight,
+    fontSize: 12
+  },
+
+  homeFooter: {
+    alignItems: 'center',
+    paddingVertical: 20,
+    marginTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.gold
+  },
+
+  homeFooterTitle: {
+    color: COLORS.gold,
+    fontSize: 22,
     fontWeight: 'bold'
   },
 
-  categoryArrow: {
-    color: COLORS.gold,
-    textAlign: 'center',
-    marginTop: 7
+  homeFooterText: {
+    color: COLORS.muted,
+    fontSize: 11,
+    marginTop: 5
   },
 
-  quickGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 10
+  homeBottomNav: {
+    minHeight: 57,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    backgroundColor: '#022417',
+    borderTopWidth: 3,
+    borderTopColor: COLORS.gold,
+    paddingTop: 2,
+    paddingBottom: Platform.OS === 'ios' ? 7 : 3,
+    elevation: 12,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6
+  },
+
+  homeNavItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 49,
+    borderLeftWidth: 1,
+    borderLeftColor: COLORS.gold
+  },
+
+  homeNavItemActive: {
+    backgroundColor: '#0A3D29'
+  },
+
+  homeNavIcon: {
+    color: COLORS.goldLight,
+    fontSize: 18,
+    marginBottom: 0
+  },
+
+  homeNavIconActive: {
+    color: COLORS.gold,
+    fontSize: 20,
+    marginBottom: 0
+  },
+
+  homeNavLabel: {
+    color: COLORS.white,
+    fontSize: 8,
+    fontWeight: 'bold'
+  },
+
+  homeNavLabelActive: {
+    color: COLORS.gold,
+    fontSize: 9,
+    fontWeight: 'bold'
   },
 
   actionCard: {
@@ -3044,27 +3278,49 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center'
   },
-
   actionIcon: {
     color: COLORS.gold,
     fontSize: 25,
     marginBottom: 7
   },
-
-  actionTitle: {
-    color: COLORS.white,
-    fontSize: 13,
-    fontWeight: 'bold',
-    textAlign: 'center'
-  },
-
   actionSubtitle: {
     color: COLORS.muted,
     fontSize: 10,
     marginTop: 5,
     textAlign: 'center'
   },
-
+  actionTitle: {
+    color: COLORS.white,
+    fontSize: 13,
+    fontWeight: 'bold',
+    textAlign: 'center'
+  },
+  cardHeading: {
+    color: COLORS.gold,
+    fontSize: 17,
+    fontWeight: 'bold',
+    textAlign: 'right',
+    marginBottom: 10
+  },
+  flexText: {
+    flex: 1
+  },
+  goldLink: {
+    color: COLORS.goldLight,
+    fontSize: 12
+  },
+  headerLine: {
+    height: 1,
+    backgroundColor: COLORS.border,
+    width: '75%',
+    alignSelf: 'center',
+    marginVertical: 13
+  },
+  lessonArrow: {
+    color: COLORS.gold,
+    fontSize: 24,
+    marginLeft: 10
+  },
   lessonCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -3075,59 +3331,44 @@ const styles = StyleSheet.create({
     padding: 13,
     marginBottom: 9
   },
-
-  lessonTextBox: {
-    flex: 1
-  },
-
-  flexText: {
-    flex: 1
-  },
-
-  lessonTitle: {
-    color: COLORS.white,
-    fontSize: 14,
-    textAlign: 'right',
-    fontWeight: 'bold'
-  },
-
   lessonDescription: {
     color: COLORS.muted,
     fontSize: 11,
     textAlign: 'right',
     marginTop: 5
   },
-
-  lessonArrow: {
-    color: COLORS.gold,
-    fontSize: 24,
-    marginLeft: 10
+  lessonTextBox: {
+    flex: 1
   },
-
-  footer: {
-    alignItems: 'center',
-    paddingVertical: 25,
-    marginTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border
-  },
-
-  footerLogo: {
-    color: COLORS.gold,
-    fontSize: 23,
+  lessonTitle: {
+    color: COLORS.white,
+    fontSize: 14,
+    textAlign: 'right',
     fontWeight: 'bold'
   },
-
-  footerText: {
+  pageContent: {
+    paddingHorizontal: 16,
+    paddingTop: 15,
+    paddingBottom: 40
+  },
+  sectionTitle: {
+    color: COLORS.gold,
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'right'
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 13,
+    marginBottom: 12
+  },
+  smallMuted: {
     color: COLORS.muted,
     fontSize: 12,
-    marginTop: 7
-  },
-
-  footerSmall: {
-    color: COLORS.muted,
-    fontSize: 10,
-    marginTop: 8
+    textAlign: 'right',
+    marginTop: 4
   },
 
   pageHeader: {
