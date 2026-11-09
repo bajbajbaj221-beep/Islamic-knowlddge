@@ -1,6 +1,5 @@
   
 import React, { useState, useEffect } from 'react';
-import { Ionicons } from '@expo/vector-icons';
 
 import {
   View,
@@ -136,12 +135,12 @@ const PRAYER_METHODS = [
 // ==================================================
 
 const PRAYERS = [
-  { key: 'fajr', title: 'سهار', icon: 'sunny-outline' },
-  { key: 'sunrise', title: 'لمر ختل', icon: 'sunrise-outline' },
-  { key: 'dhuhr', title: 'ماسپښین', icon: 'partly-sunny-outline' },
-  { key: 'asr', title: 'مازدیګر', icon: 'sunset-outline' },
-  { key: 'maghrib', title: 'ماښام', icon: 'cloudy-night-outline' },
-  { key: 'isha', title: 'ماخستن', icon: 'moon-outline' }
+  { key: 'fajr', title: 'سهار', icon: '🌅' },
+  { key: 'sunrise', title: 'لمر ختل', icon: '☀️' },
+  { key: 'dhuhr', title: 'ماسپښین', icon: '🌤️' },
+  { key: 'asr', title: 'مازدیګر', icon: '🌇' },
+  { key: 'maghrib', title: 'ماښام', icon: '🌆' },
+  { key: 'isha', title: 'ماخستن', icon: '🌙' }
 ];
 
 // ==================================================
@@ -1276,7 +1275,9 @@ export default function App() {
         onPress={onPress}
         activeOpacity={0.8}
       >
-        <Ionicons name={icon || 'apps-outline'} size={25} color={COLORS.gold} />
+        <Text style={styles.actionIcon}>
+          {icon}
+        </Text>
 
         <Text style={styles.actionTitle}>
           {title}
@@ -1426,7 +1427,7 @@ export default function App() {
                     onPress={() => setScreen('settings')}
                     accessibilityLabel="تنظیمات"
                   >
-                    <Ionicons name="settings-outline" size={16} color={COLORS.gold} />
+                    <Text style={styles.headerActionIcon}>⚙</Text>
                   </TouchableOpacity>
                   <View style={styles.headerTopSpacer} />
                   <TouchableOpacity
@@ -1434,7 +1435,7 @@ export default function App() {
                     onPress={() => setScreen('reminders')}
                     accessibilityLabel="خبرتیاوې"
                   >
-                    <Ionicons name="notifications-outline" size={16} color={COLORS.gold} />
+                    <Text style={styles.headerActionIcon}>♟</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -1458,7 +1459,7 @@ export default function App() {
                     onPress={() => setScreen('search')}
                     activeOpacity={0.8}
                   >
-                    <Ionicons name="search-outline" size={16} color={COLORS.gold} />
+                    <Text style={styles.homeSearchIcon}>⌕</Text>
                     <Text style={styles.homeSearchPlaceholder}>پلټون...</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -1467,7 +1468,7 @@ export default function App() {
                     activeOpacity={0.8}
                   >
                     <Text style={styles.prayerHeadingText}>اوقات الصلاة</Text>
-                    <Ionicons name="time-outline" size={16} color={COLORS.goldLight} />
+                    <Text style={styles.prayerHeadingIcon}>◷</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -1480,7 +1481,7 @@ export default function App() {
                       onPress={() => setScreen('prayer')}
                       activeOpacity={0.75}
                     >
-                      <Ionicons name={prayer.icon} size={13} color={COLORS.gold} />
+                      <Text style={styles.homePrayerIcon}>{prayer.icon}</Text>
                       <Text style={styles.homePrayerName}>{prayer.title}</Text>
                       <Text style={styles.homePrayerTime}>
                         {prayerTimes ? formatTime(prayerTimes[prayer.key]) : '--:--'}
@@ -1503,14 +1504,10 @@ export default function App() {
                 </TouchableOpacity>
               </View>
 
-              {/* ټولې علمي برخې هماغسې له پخواني سیستم سره تړلې دي */}
-              <View style={styles.homeSectionHeading}>
-                <Text style={styles.homeSectionHeadingText}>علمي برخې</Text>
-                <Text style={styles.homeSectionHeadingLine}>ــــــــــــــــــــــــ</Text>
-              </View>
+              {/* علمي برخې؛ سرلیک لرې شوی، د برخو تڼۍ له پخواني سیستم سره تړلې دي */}
               <View style={styles.homeCategoriesGrid}>
                 {SECTIONS.map((section, index) => {
-                  const icons = ['book-outline', 'chatbox-ellipses-outline', 'globe-outline', 'school-outline', 'help-circle-outline', 'library-outline'];
+                  const icons = ['۞', '◈', '⌘', '✧', '؟', '▤'];
                   return (
                     <TouchableOpacity
                       key={section}
@@ -1518,7 +1515,7 @@ export default function App() {
                       onPress={() => openSection(section)}
                       activeOpacity={0.82}
                     >
-                      <Ionicons name={icons[index]} size={15} color={COLORS.gold} />
+                      <Text style={styles.homeCategoryIcon}>{icons[index]}</Text>
                       <Text style={styles.homeCategoryTitle}>{section}</Text>
                     </TouchableOpacity>
                   );
@@ -1532,9 +1529,9 @@ export default function App() {
                 activeOpacity={0.88}
               >
                 <View style={styles.homeLessonsArtwork}>
-                  <Ionicons name="sparkles-outline" size={24} color={COLORS.gold} style={styles.homeBookGlow} />
-                  <Ionicons name="book" size={30} color={COLORS.goldLight} />
-                  <Ionicons name="bookmarks-outline" size={18} color={COLORS.gold} />
+                  <Text style={styles.homeBookGlow}>✧</Text>
+                  <Text style={styles.homeBookIcon}>📖</Text>
+                  <Text style={styles.homeBookStand}>⌁</Text>
                 </View>
                 <View style={styles.homeLessonsText}>
                   <Text style={styles.homeLessonsTitle}>دروس المشایخ</Text>
@@ -1542,7 +1539,7 @@ export default function App() {
                     د علماوو او مشایخو علمي درسونه
                   </Text>
                   <View style={styles.homeLessonsButton}>
-                    <Text style={styles.homeLessonsButtonText}>درسونو ته داخل شئ</Text><Ionicons name="arrow-forward" size={11} color={COLORS.black} />
+                    <Text style={styles.homeLessonsButtonText}>درسونو ته داخل شئ  ▶</Text>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -1554,7 +1551,7 @@ export default function App() {
                   onPress={() => setScreen('favorites')}
                   activeOpacity={0.82}
                 >
-                  <Ionicons name="heart-outline" size={17} color={COLORS.gold} />
+                  <Text style={styles.homeShortcutIcon}>♥</Text>
                   <Text style={styles.homeShortcutTitle}>خوښ شوي فایلونه</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -1562,7 +1559,7 @@ export default function App() {
                   onPress={() => openSection('سوالونه او ځوابونه')}
                   activeOpacity={0.82}
                 >
-                  <Ionicons name="help-circle-outline" size={17} color={COLORS.gold} />
+                  <Text style={styles.homeShortcutIcon}>▤</Text>
                   <Text style={styles.homeShortcutTitle}>سوالات او جوابات</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -1570,7 +1567,7 @@ export default function App() {
                   onPress={() => openSection('عمومي درسونه او کتابونه')}
                   activeOpacity={0.82}
                 >
-                  <Ionicons name="library-outline" size={17} color={COLORS.gold} />
+                  <Text style={styles.homeShortcutIcon}>▰</Text>
                   <Text style={styles.homeShortcutTitle}>الکتب</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -1578,7 +1575,7 @@ export default function App() {
                   onPress={() => setScreen('search')}
                   activeOpacity={0.82}
                 >
-                  <Ionicons name="school-outline" size={17} color={COLORS.gold} />
+                  <Text style={styles.homeShortcutIcon}>➤</Text>
                   <Text style={styles.homeShortcutTitle}>د زده کړې مسیر</Text>
                 </TouchableOpacity>
               </View>
@@ -1590,7 +1587,7 @@ export default function App() {
                   onPress={() => setScreen('adhkarHome')}
                   activeOpacity={0.82}
                 >
-                  <Ionicons name="moon-outline" size={22} color={COLORS.gold} />
+                  <Text style={styles.homeWideIcon}>☾</Text>
                   <View style={styles.homeWideTextBox}>
                     <Text style={styles.homeWideTitle}>د سهار او ماښام اذکار</Text>
                     <Text style={styles.homeWideSubtitle}>ورځني اذکار</Text>
@@ -1601,7 +1598,7 @@ export default function App() {
                   onPress={() => setScreen('notes')}
                   activeOpacity={0.82}
                 >
-                  <Ionicons name="document-text-outline" size={22} color={COLORS.gold} />
+                  <Text style={styles.homeWideIcon}>▤</Text>
                   <View style={styles.homeWideTextBox}>
                     <Text style={styles.homeWideTitle}>زما نوټونه</Text>
                     <Text style={styles.homeWideSubtitle}>شخصي یادښتونه</Text>
@@ -1616,23 +1613,23 @@ export default function App() {
             {/* ثابت لاندې مینو؛ یوازې په کورپاڼه کې ښکاري */}
             <View style={styles.homeBottomNav}>
               <TouchableOpacity style={styles.homeNavItem} activeOpacity={0.75} onPress={() => setScreen('scholars')}>
-                <Ionicons name="library-outline" size={19} color={COLORS.goldLight} />
+                <Text style={styles.homeNavIcon}>◎</Text>
                 <Text style={styles.homeNavLabel}>کتابتون</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.homeNavItem} activeOpacity={0.75} onPress={() => setScreen('adhkarHome')}>
-                <Ionicons name="moon-outline" size={19} color={COLORS.goldLight} />
+                <Text style={styles.homeNavIcon}>☾</Text>
                 <Text style={styles.homeNavLabel}>اذکار</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.homeNavItem} activeOpacity={0.75} onPress={() => setScreen('notes')}>
-                <Ionicons name="document-text-outline" size={19} color={COLORS.goldLight} />
+                <Text style={styles.homeNavIcon}>▤</Text>
                 <Text style={styles.homeNavLabel}>نوټونه</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.homeNavItem} activeOpacity={0.75} onPress={() => setScreen('settings')}>
-                <Ionicons name="settings-outline" size={19} color={COLORS.goldLight} />
+                <Text style={styles.homeNavIcon}>⚙</Text>
                 <Text style={styles.homeNavLabel}>تنظیمات</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.homeNavItem, styles.homeNavItemActive]} activeOpacity={0.75} onPress={() => setScreen('home')}>
-                <Ionicons name="home" size={20} color={COLORS.gold} />
+                <Text style={styles.homeNavIconActive}>⌂</Text>
                 <Text style={styles.homeNavLabelActive}>کور</Text>
               </TouchableOpacity>
             </View>
@@ -1671,7 +1668,7 @@ export default function App() {
                   </Text>
                 </View>
 
-                <Ionicons name="chevron-back" size={20} color={COLORS.gold} />
+                <Text style={styles.lessonArrow}>‹</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -1695,13 +1692,13 @@ export default function App() {
                 style={styles.listCard}
                 onPress={() => openOldCategory(section)}
               >
-                <Ionicons name="document-text-outline" size={21} color={COLORS.gold} />
+                <Text style={styles.listCardIcon}>▤</Text>
 
                 <Text style={styles.listCardTitle}>
                   {section}
                 </Text>
 
-                <Ionicons name="chevron-back" size={20} color={COLORS.gold} />
+                <Text style={styles.lessonArrow}>‹</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -1752,7 +1749,7 @@ export default function App() {
                 <TouchableOpacity
                   onPress={() => deleteOldBook(book.id)}
                 >
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}><Ionicons name="trash-outline" size={15} color={COLORS.red} /><Text style={styles.deleteIcon}> حذف</Text></View>
+                  <Text style={styles.deleteIcon}>حذف</Text>
                 </TouchableOpacity>
               </View>
             ))}
@@ -1808,7 +1805,7 @@ export default function App() {
                   <TouchableOpacity
                     onPress={() => deleteOldChapter(chapter.id)}
                   >
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}><Ionicons name="trash-outline" size={15} color={COLORS.red} /><Text style={styles.deleteIcon}> حذف</Text></View>
+                    <Text style={styles.deleteIcon}>حذف</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -1865,13 +1862,13 @@ export default function App() {
                   style={styles.listCard}
                   onPress={() => openFolder(folder)}
                 >
-                  <Ionicons name="document-text-outline" size={21} color={COLORS.gold} />
+                  <Text style={styles.listCardIcon}>▤</Text>
 
                   <Text style={styles.listCardTitle}>
                     {folder}
                   </Text>
 
-                  <Ionicons name="chevron-back" size={20} color={COLORS.gold} />
+                  <Text style={styles.lessonArrow}>‹</Text>
                 </TouchableOpacity>
               )
             )}
@@ -1916,7 +1913,7 @@ export default function App() {
                 <TouchableOpacity
                   onPress={() => deleteGlobalItem(item.id)}
                 >
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}><Ionicons name="trash-outline" size={15} color={COLORS.red} /><Text style={styles.deleteIcon}> حذف</Text></View>
+                  <Text style={styles.deleteIcon}>حذف</Text>
                 </TouchableOpacity>
               </View>
             ))}
@@ -2108,7 +2105,7 @@ export default function App() {
                   <TouchableOpacity
                     onPress={() => deleteNote(note.id)}
                   >
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}><Ionicons name="trash-outline" size={15} color={COLORS.red} /><Text style={styles.deleteIcon}> حذف</Text></View>
+                    <Text style={styles.deleteIcon}>حذف</Text>
                   </TouchableOpacity>
                 </View>
               ))}
@@ -2193,7 +2190,7 @@ export default function App() {
                 <TouchableOpacity
                   onPress={() => deleteReminder(item.id)}
                 >
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}><Ionicons name="trash-outline" size={15} color={COLORS.red} /><Text style={styles.deleteIcon}> حذف</Text></View>
+                  <Text style={styles.deleteIcon}>حذف</Text>
                 </TouchableOpacity>
               </View>
             ))}
@@ -2261,13 +2258,13 @@ export default function App() {
                   setScreen('adhkarFolder');
                 }}
               >
-                <Ionicons name="folder-open-outline" size={21} color={COLORS.gold} />
+                <Text style={styles.listCardIcon}>۞</Text>
 
                 <Text style={styles.listCardTitle}>
                   {category}
                 </Text>
 
-                <Ionicons name="chevron-back" size={20} color={COLORS.gold} />
+                <Text style={styles.lessonArrow}>‹</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -2308,7 +2305,7 @@ export default function App() {
                     {item.title}
                   </Text>
 
-                  <Ionicons name="chevron-back" size={20} color={COLORS.gold} />
+                  <Text style={styles.lessonArrow}>‹</Text>
                 </TouchableOpacity>
               ))}
           </ScrollView>
@@ -2630,7 +2627,7 @@ export default function App() {
                   </Text>
                 </View>
 
-                <Ionicons name="chevron-back" size={20} color={COLORS.gold} />
+                <Text style={styles.lessonArrow}>‹</Text>
               </TouchableOpacity>
             ))}
 
@@ -2670,7 +2667,7 @@ export default function App() {
                   </Text>
                 </View>
 
-                <Ionicons name="chevron-back" size={20} color={COLORS.gold} />
+                <Text style={styles.lessonArrow}>‹</Text>
               </TouchableOpacity>
             ))}
 
@@ -2698,10 +2695,9 @@ function PageHeader({ title, subtitle, onBack }) {
         style={styles.backButton}
         onPress={onBack}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Ionicons name="arrow-back" size={17} color={COLORS.gold} />
-          <Text style={styles.backButtonText}> شاته</Text>
-        </View>
+        <Text style={styles.backButtonText}>
+          → شاته
+        </Text>
       </TouchableOpacity>
 
       <Text style={styles.pageTitle}>
@@ -2751,12 +2747,12 @@ const styles = StyleSheet.create({
 
   homeScreen: {
     flex: 1,
-    backgroundColor: COLORS.background
+    backgroundColor: '#E8EEE8'
   },
 
   homeContent: {
     flex: 1,
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     paddingHorizontal: 7,
     paddingTop: 2,
     paddingBottom: 2
@@ -2830,8 +2826,8 @@ const styles = StyleSheet.create({
   },
 
   headerSubtitle: {
-    color: COLORS.white,
-    fontSize: 10,
+    color: '#FFFFFF',
+    fontSize: 11,
     fontWeight: 'bold',
     marginTop: 1,
     textAlign: 'center'
@@ -2858,7 +2854,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.gold,
     borderRadius: 27,
     padding: 4,
-    marginBottom: 2,
+    marginBottom: 5,
     elevation: 6,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 3 },
@@ -2892,8 +2888,8 @@ const styles = StyleSheet.create({
   },
 
   homeSearchPlaceholder: {
-    color: COLORS.muted,
-    fontSize: 10
+    color: '#FFFFFF',
+    fontSize: 11
   },
 
   prayerHeadingButton: {
@@ -2945,15 +2941,15 @@ const styles = StyleSheet.create({
   },
 
   homePrayerName: {
-    color: COLORS.white,
-    fontSize: 8,
+    color: '#FFFFFF',
+    fontSize: 9,
     fontWeight: 'bold',
     marginBottom: 0
   },
 
   homePrayerTime: {
-    color: COLORS.white,
-    fontSize: 9,
+    color: '#FFFFFF',
+    fontSize: 10,
     fontWeight: 'bold'
   },
 
@@ -2965,8 +2961,8 @@ const styles = StyleSheet.create({
   },
 
   homePrayerRefreshText: {
-    color: COLORS.goldLight,
-    fontSize: 7
+    color: '#FFFFFF',
+    fontSize: 8
   },
 
   homeLessonsCard: {
@@ -2978,7 +2974,8 @@ const styles = StyleSheet.create({
     borderColor: COLORS.gold,
     borderRadius: 31,
     padding: 5,
-    marginBottom: 2,
+    marginTop: 5,
+    marginBottom: 5,
     overflow: 'hidden',
     elevation: 7,
     shadowColor: '#000000',
@@ -3030,8 +3027,8 @@ const styles = StyleSheet.create({
   },
 
   homeLessonsSubtitle: {
-    color: COLORS.white,
-    fontSize: 9,
+    color: '#FFFFFF',
+    fontSize: 10,
     textAlign: 'right',
     marginTop: 2,
     marginBottom: 3
@@ -3054,7 +3051,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     gap: 4,
-    marginBottom: 3
+    marginTop: 3,
+    marginBottom: 5
   },
 
   homeShortcutCard: {
@@ -3082,8 +3080,8 @@ const styles = StyleSheet.create({
   },
 
   homeShortcutTitle: {
-    color: COLORS.white,
-    fontSize: 8,
+    color: '#FFFFFF',
+    fontSize: 9,
     fontWeight: 'bold',
     textAlign: 'center'
   },
@@ -3092,6 +3090,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     gap: 5,
+    marginTop: 3,
     marginBottom: 3
   },
 
@@ -3125,15 +3124,15 @@ const styles = StyleSheet.create({
   },
 
   homeWideTitle: {
-    color: COLORS.goldLight,
-    fontSize: 9,
+    color: '#FFFFFF',
+    fontSize: 10,
     fontWeight: 'bold',
     textAlign: 'right'
   },
 
   homeWideSubtitle: {
-    color: COLORS.muted,
-    fontSize: 7,
+    color: '#F4F7F4',
+    fontSize: 8,
     marginTop: 1,
     textAlign: 'right'
   },
@@ -3184,8 +3183,8 @@ const styles = StyleSheet.create({
   },
 
   homeCategoryTitle: {
-    color: COLORS.white,
-    fontSize: 8,
+    color: '#FFFFFF',
+    fontSize: 9,
     fontWeight: 'bold',
     textAlign: 'center'
   },
@@ -3217,7 +3216,8 @@ const styles = StyleSheet.create({
 
   homeBottomNav: {
     minHeight: 54,
-    marginBottom: Platform.OS === 'android' ? 18 : 0,
+    // مینو د سور نښه شوي حد څخه پورته ساتل کېږي؛ لاندې د سیستم navigation لپاره تشه پاتې ده
+    marginBottom: Platform.OS === 'android' ? 42 : 12,
     flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-around',
@@ -3259,8 +3259,8 @@ const styles = StyleSheet.create({
   },
 
   homeNavLabel: {
-    color: COLORS.white,
-    fontSize: 8,
+    color: '#FFFFFF',
+    fontSize: 9,
     fontWeight: 'bold'
   },
 
