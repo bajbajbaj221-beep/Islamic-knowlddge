@@ -1,5 +1,5 @@
   
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 import {
   View,
@@ -15,8 +15,7 @@ import {
   Platform,
   ActivityIndicator,
   BackHandler,
-  KeyboardAvoidingView,
-  useWindowDimensions
+  KeyboardAvoidingView
 } from 'react-native';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -24,6 +23,9 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as Sharing from 'expo-sharing';
 import * as Notifications from 'expo-notifications';
 import * as Location from 'expo-location';
+import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import * as FileSystem from 'expo-file-system/legacy';
+import Pdf from 'react-native-pdf';
 
 import {
   PrayerTimes,
@@ -79,7 +81,11 @@ const STORAGE = {
   global: 'global_library',
   reminders: 'lesson_reminders',
   adhkar: 'adhkar_data',
-  favorites: 'library_favorites'
+  favorites: 'library_favorites',
+  audioMarks: 'audio_bookmarks_v1',
+  pdfMarks: 'pdf_bookmarks_v1',
+  audioProgress: 'audio_playback_progress_v1',
+  pdfProgress: 'pdf_reading_progress_v1'
 };
 
 // ==================================================
@@ -162,10 +168,6 @@ const DHIKR_CATEGORIES = [
 
 export default function App() {
 
-  const { height: windowHeight } = useWindowDimensions();
-  // د کورپاڼې ټول عناصر د موبایل د سکرین له لوړوالي سره برابرېږي؛ سکرول نه کارول کېږي.
-  const homeScale = Math.max(0.72, Math.min(1, (windowHeight - 90) / 700));
-
   // ------------------------------------------------
   // 10.1 - د سکرینونو حالت
   // ------------------------------------------------
@@ -196,6 +198,22 @@ export default function App() {
   const [reminders, setReminders] = useState([]);
   const [adhkar, setAdhkar] = useState([]);
   const [favorites, setFavorites] = useState([]);
+  const [audioMarks, setAudioMarks] = useState([]);
+  const [pdfMarks, setPdfMarks] = useState([]);
+  const [audioStatus, setAudioStatus] = useState({ isLoaded: false, isPlaying: false, positionMillis: 0, durationMillis: 0, rate: 1 });
+  const [audioBookmarkText, setAudioBookmarkText] = useState('');
+  const [audioTrackWidth, setAudioTrackWidth] = useState(1);
+  const [pdfBookmarkText, setPdfBookmarkText] = useState('');
+  const [pdfCurrentPage, setPdfCurrentPage] = useState(1);
+  const [pdfTotalPages, setPdfTotalPages] = useState(0);
+  const [pdfInitialPage, setPdfInitialPage] = useState(1);
+  const audioSoundRef = useRef(null);
+  const audioQueueRef = useRef([]);
+  const audioItemRef = useRef(null);
+  const audioStartAtRef = useRef(null);
+  const lastProgressSaveRef = useRef(0);
+  const pendingAudioSeekRef = useRef(null);
+  const audioFinishHandledRef = useRef(false);
 
   // ------------------------------------------------
   // 10.4 - د اپلیکیشن تنظیمات
@@ -275,7 +293,9 @@ export default function App() {
         AsyncStorage.getItem(STORAGE.global),
         AsyncStorage.getItem(STORAGE.reminders),
         AsyncStorage.getItem(STORAGE.adhkar),
-        AsyncStorage.getItem(STORAGE.favorites)
+        AsyncStorage.getItem(STORAGE.favorites),
+        AsyncStorage.getItem(STORAGE.audioMarks),
+        AsyncStorage.getItem(STORAGE.pdfMarks)
       ]);
 
       const [
@@ -285,7 +305,9 @@ export default function App() {
         savedGlobal,
         savedReminders,
         savedAdhkar,
-        savedFavorites
+        savedFavorites,
+        savedAudioMarks,
+        savedPdfMarks
       ] = results;
 
       if (savedSettings) {
@@ -301,6 +323,8 @@ export default function App() {
       if (savedReminders) setReminders(JSON.parse(savedReminders));
       if (savedAdhkar) setAdhkar(JSON.parse(savedAdhkar));
       if (savedFavorites) setFavorites(JSON.parse(savedFavorites));
+      if (savedAudioMarks) setAudioMarks(JSON.parse(savedAudioMarks));
+      if (savedPdfMarks) setPdfMarks(JSON.parse(savedPdfMarks));
 
     } catch (error) {
       Alert.alert('خبرتیا', 'د معلوماتو په لوستلو کې ستونزه رامنځته شوه.');
@@ -373,6 +397,16 @@ export default function App() {
     await saveData(STORAGE.favorites, updated);
   }
 
+  async function saveAudioMarks(updated) {
+    setAudioMarks(updated);
+    await saveData(STORAGE.audioMarks, updated);
+  }
+
+  async function savePdfMarks(updated) {
+    setPdfMarks(updated);
+    await saveData(STORAGE.pdfMarks, updated);
+  }
+
   // ==================================================
   // 13 - د سکرینونو بدلول
   // ==================================================
@@ -403,7 +437,11 @@ export default function App() {
       prayer: 'home',
       settings: 'home',
       search: 'home',
-      favorites: 'home'
+      favorites: 'home',
+      audioPlayer: 'itemDetails',
+      pdfReader: 'itemDetails',
+      audioMarks: 'notes',
+      pdfMarks: 'notes'
     };
 
     setScreen(parents[screen] || 'home');
@@ -552,6 +590,25 @@ export default function App() {
   }
 
   // ==================================================
+  // د انتخاب شويو آډیو او PDF فایلونو دایمي کاپي
+  // ==================================================
+
+  async function keepPickedFile(file, kind) {
+    if (!file?.uri) return file?.uri || '';
+    try {
+      const base = FileSystem.documentDirectory;
+      if (!base) return file.uri;
+      const safeName = (file.name || `${kind}-${Date.now()}`).replace(/[^a-zA-Z0-9._-]/g, '_');
+      const destination = `${base}${kind}-${Date.now()}-${safeName}`;
+      await FileSystem.copyAsync({ from: file.uri, to: destination });
+      return destination;
+    } catch (error) {
+      // که کاپي ممکنه نه وه، د DocumentPicker URI وساتئ.
+      return file.uri;
+    }
+  }
+
+  // ==================================================
   // 17 - د آډیو فایل ټاکل
   // ==================================================
 
@@ -566,7 +623,8 @@ export default function App() {
       if (!result.canceled && result.assets?.length) {
         const file = result.assets[0];
 
-        setFormAudio(file.uri);
+        const stableUri = await keepPickedFile(file, 'audio');
+        setFormAudio(stableUri);
 
         if (!formDescription) {
           setFormDescription(file.name || '');
@@ -593,7 +651,8 @@ export default function App() {
       if (!result.canceled && result.assets?.length) {
         const file = result.assets[0];
 
-        setFormPDF(file.uri);
+        const stableUri = await keepPickedFile(file, 'pdf');
+        setFormPDF(stableUri);
 
         if (!formDescription) {
           setFormDescription(file.name || '');
@@ -681,6 +740,297 @@ export default function App() {
 
     await saveFavorites(updated);
   }
+
+  // ==================================================
+  // 20.1 - پرمختللی آډیو پلیر او د نقطو نښه کول
+  // ==================================================
+
+  function getAudioQueue() {
+    return globalItems.filter(item => !!item.audio);
+  }
+
+  async function persistAudioProgress(item, positionMillis) {
+    if (!item?.id) return;
+    try {
+      await AsyncStorage.setItem(STORAGE.audioProgress, JSON.stringify({
+        resourceId: item.id,
+        title: item.title || '',
+        uri: item.audio,
+        positionMillis: Math.max(0, Math.floor(positionMillis || 0)),
+        updatedAt: new Date().toISOString()
+      }));
+    } catch (error) {}
+  }
+
+  async function startAudio(item, requestedPosition) {
+    if (!item?.audio) {
+      Alert.alert('آډیو نشته', 'د دې درس لپاره آډیو فایل نه دی ثبت شوی.');
+      return;
+    }
+    try {
+      if (audioSoundRef.current) {
+        try { audioSoundRef.current.pause(); audioSoundRef.current.clearLockScreenControls(); audioSoundRef.current.remove(); } catch (error) {}
+        audioSoundRef.current = null;
+      }
+      audioItemRef.current = item;
+      audioQueueRef.current = getAudioQueue();
+      audioFinishHandledRef.current = false;
+      let startAt = Number.isFinite(requestedPosition) ? requestedPosition : 0;
+      if (!Number.isFinite(requestedPosition)) {
+        const saved = await AsyncStorage.getItem(STORAGE.audioProgress);
+        if (saved) {
+          const progress = JSON.parse(saved);
+          if (progress.resourceId === item.id && progress.uri === item.audio) {
+            startAt = progress.positionMillis || 0;
+          }
+        }
+      }
+      await setAudioModeAsync({
+        playsInSilentMode: true,
+        shouldPlayInBackground: true,
+        interruptionMode: 'doNotMix'
+      });
+      pendingAudioSeekRef.current = startAt;
+      const player = createAudioPlayer(item.audio, { updateInterval: 500, downloadFirst: false });
+      audioSoundRef.current = player;
+      player.addListener('playbackStatusUpdate', status => {
+        if (!status.isLoaded) return;
+        const mapped = {
+          isLoaded: status.isLoaded,
+          isPlaying: status.playing,
+          positionMillis: Math.floor((status.currentTime || 0) * 1000),
+          durationMillis: Math.floor((status.duration || 0) * 1000),
+          rate: status.playbackRate || 1
+        };
+        setAudioStatus(mapped);
+        if (pendingAudioSeekRef.current !== null) {
+          const pending = pendingAudioSeekRef.current;
+          pendingAudioSeekRef.current = null;
+          if (pending > 0) player.seekTo(pending / 1000).then(() => player.play()).catch(() => player.play());
+          else player.play();
+          player.setActiveForLockScreen(true, {
+            title: item.title || 'میراث اسلام',
+            artist: item.scholar || 'میراث اسلام',
+            albumTitle: item.section || 'د علمي بیانونو کتابتون'
+          }, { showSeekBackward: true, showSeekForward: true });
+        }
+        if (mapped.positionMillis - lastProgressSaveRef.current >= 5000) {
+          lastProgressSaveRef.current = mapped.positionMillis;
+          persistAudioProgress(audioItemRef.current, mapped.positionMillis);
+        }
+        if (status.didJustFinish && !audioFinishHandledRef.current) {
+          audioFinishHandledRef.current = true;
+          persistAudioProgress(audioItemRef.current, 0);
+          playNextAudio(false);
+        }
+      });
+      setAudioStatus({ isLoaded: false, isPlaying: false, positionMillis: startAt, durationMillis: 0, rate: 1 });
+      setScreen('audioPlayer');
+    } catch (error) {
+      Alert.alert('د غږ ستونزه', 'آډیو پرانیستل نه شوه. د فایل شتون او اجازه وګورئ.');
+    }
+  }
+
+  async function toggleAudioPlayback() {
+    try {
+      const player = audioSoundRef.current;
+      if (!player) return;
+      if (audioStatus.isPlaying) player.pause();
+      else player.play();
+    } catch (error) {
+      Alert.alert('ستونزه', 'د غږ حالت بدل نه شو.');
+    }
+  }
+
+  async function seekAudio(deltaMillis) {
+    try {
+      const player = audioSoundRef.current;
+      if (!player) return;
+      const next = Math.max(0, Math.min(audioStatus.durationMillis || 0, audioStatus.positionMillis + deltaMillis));
+      await player.seekTo(next / 1000);
+      await persistAudioProgress(audioItemRef.current, next);
+    } catch (error) {}
+  }
+
+  async function seekAudioToFraction(fraction) {
+    try {
+      const duration = audioStatus.durationMillis || 0;
+      if (audioSoundRef.current && duration > 0) {
+        const next = Math.max(0, Math.min(duration, duration * fraction));
+        await audioSoundRef.current.seekTo(next / 1000);
+        await persistAudioProgress(audioItemRef.current, next);
+      }
+    } catch (error) {}
+  }
+
+  async function changeAudioRate(rate) {
+    try {
+      if (audioSoundRef.current) {
+        audioSoundRef.current.setPlaybackRate(rate);
+        setAudioStatus(old => ({ ...old, rate }));
+      }
+    } catch (error) {
+      Alert.alert('خبرتیا', 'دا فایل د غږ د سرعت بدلون نه ملاتړ کوي.');
+    }
+  }
+
+  async function playNextAudio(previous = false) {
+    const queue = audioQueueRef.current.length ? audioQueueRef.current : getAudioQueue();
+    const current = audioItemRef.current;
+    const index = queue.findIndex(item => item.id === current?.id);
+    const nextIndex = previous ? index - 1 : index + 1;
+    if (nextIndex < 0 || nextIndex >= queue.length) {
+      if (audioSoundRef.current) {
+        try { await audioSoundRef.current.stopAsync(); } catch (error) {}
+      }
+      return;
+    }
+    await startAudio(queue[nextIndex], 0);
+  }
+
+  async function saveAudioBookmark() {
+    const item = audioItemRef.current || selectedItem;
+    if (!item?.audio) return;
+    const position = audioStatus.positionMillis || 0;
+    const mark = {
+      id: `audio-${Date.now()}`,
+      resourceId: item.id,
+      resourceTitle: item.title || 'بې نومه بیان',
+      uri: item.audio,
+      positionMillis: Math.floor(position),
+      note: audioBookmarkText.trim(),
+      scholar: item.scholar || '',
+      section: item.section || '',
+      createdAt: new Date().toISOString()
+    };
+    await saveAudioMarks([mark, ...audioMarks]);
+    setAudioBookmarkText('');
+    Alert.alert('خوندي شو', `د بیان ${formatDuration(position)} ځای او یادښت خوندي شول.`);
+  }
+
+  async function openAudioMark(mark) {
+    const item = globalItems.find(value => value.id === mark.resourceId) || {
+      id: mark.resourceId, title: mark.resourceTitle, audio: mark.uri,
+      scholar: mark.scholar, section: mark.section
+    };
+    setSelectedItem(item);
+    await startAudio(item, mark.positionMillis || 0);
+  }
+
+  async function deleteAudioMark(id) {
+    Alert.alert('نښه حذف', 'دا د آډیو نښه حذف کړئ؟', [
+      { text: 'نه', style: 'cancel' },
+      { text: 'هو، حذف', style: 'destructive', onPress: () => saveAudioMarks(audioMarks.filter(mark => mark.id !== id)) }
+    ]);
+  }
+
+  async function openPdf(item, page = null) {
+    if (!item?.pdf) {
+      Alert.alert('PDF نشته', 'د دې درس لپاره PDF فایل نه دی ثبت شوی.');
+      return;
+    }
+    let targetPage = page;
+    if (!targetPage) {
+      try {
+        const saved = await AsyncStorage.getItem(STORAGE.pdfProgress);
+        if (saved) {
+          const progress = JSON.parse(saved);
+          if (progress.resourceId === item.id) targetPage = progress.page;
+        }
+      } catch (error) {}
+    }
+    targetPage = Math.max(1, targetPage || 1);
+    setSelectedItem(item);
+    setPdfInitialPage(targetPage);
+    setPdfCurrentPage(targetPage);
+    setPdfBookmarkText('');
+    setScreen('pdfReader');
+  }
+
+  async function savePdfBookmark() {
+    if (!selectedItem?.pdf) return;
+    const mark = {
+      id: `pdf-${Date.now()}`,
+      resourceId: selectedItem.id,
+      resourceTitle: selectedItem.title || 'بې نومه کتاب',
+      uri: selectedItem.pdf,
+      page: Math.max(1, pdfCurrentPage || 1),
+      note: pdfBookmarkText.trim(),
+      scholar: selectedItem.scholar || '',
+      section: selectedItem.section || '',
+      createdAt: new Date().toISOString()
+    };
+    await savePdfMarks([mark, ...pdfMarks]);
+    setPdfBookmarkText('');
+    Alert.alert('خوندي شو', `د کتاب ${mark.page} مخ او یادښت خوندي شول.`);
+  }
+
+  async function openPdfMark(mark) {
+    const item = globalItems.find(value => value.id === mark.resourceId) || {
+      id: mark.resourceId, title: mark.resourceTitle, pdf: mark.uri,
+      scholar: mark.scholar, section: mark.section
+    };
+    openPdf(item, mark.page || 1);
+  }
+
+  async function deletePdfMark(id) {
+    Alert.alert('نښه حذف', 'دا د کتاب نښه حذف کړئ؟', [
+      { text: 'نه', style: 'cancel' },
+      { text: 'هو، حذف', style: 'destructive', onPress: () => savePdfMarks(pdfMarks.filter(mark => mark.id !== id)) }
+    ]);
+  }
+
+  function formatDuration(milliseconds) {
+    const total = Math.max(0, Math.floor((milliseconds || 0) / 1000));
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const seconds = total % 60;
+    return hours > 0
+      ? `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+      : `${minutes}:${String(seconds).padStart(2, '0')}`;
+  }
+
+  async function exportManualBackup() {
+    try {
+      const payload = {
+        app: 'ميراث اسلام', version: 1, exportedAt: new Date().toISOString(),
+        audioMarks, pdfMarks, notes
+      };
+      const uri = `${FileSystem.cacheDirectory}mirath-islam-bookmarks-${Date.now()}.json`;
+      await FileSystem.writeAsStringAsync(uri, JSON.stringify(payload, null, 2));
+      await shareFile(uri, 'application/json');
+    } catch (error) {
+      Alert.alert('Backup ستونزه', 'د یادښتونو Backup جوړ نه شو.');
+    }
+  }
+
+  async function importManualBackup() {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/json', 'text/*'], copyToCacheDirectory: true, multiple: false
+      });
+      if (result.canceled || !result.assets?.length) return;
+      const raw = await FileSystem.readAsStringAsync(result.assets[0].uri);
+      const backup = JSON.parse(raw);
+      if (!backup || backup.app !== 'ميراث اسلام') throw new Error('ناسم Backup');
+      const mergedAudio = [...(backup.audioMarks || []), ...audioMarks];
+      const mergedPdf = [...(backup.pdfMarks || []), ...pdfMarks];
+      const mergedNotes = [...(backup.notes || []), ...notes];
+      const unique = list => Array.from(new Map(list.map(item => [item.id, item])).values());
+      await saveAudioMarks(unique(mergedAudio));
+      await savePdfMarks(unique(mergedPdf));
+      await saveNotes(unique(mergedNotes));
+      Alert.alert('بریالی شو', 'Backup معلومات بېرته ورزیات شول.');
+    } catch (error) {
+      Alert.alert('Backup ستونزه', 'دا فایل سم Backup نه دی یا لوستل نه شو.');
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      if (audioSoundRef.current) { try { audioSoundRef.current.pause(); audioSoundRef.current.clearLockScreenControls(); audioSoundRef.current.remove(); } catch (error) {} }
+    };
+  }, []);
 
   // ==================================================
   // 21 - د لمانځه محاسبه
@@ -1412,7 +1762,7 @@ export default function App() {
   return (
     <View style={styles.container}>
       <StatusBar
-        backgroundColor={screen === 'home' ? '#031B12' : COLORS.background}
+        backgroundColor={COLORS.background}
         barStyle="light-content"
       />
 
@@ -1425,7 +1775,7 @@ export default function App() {
           <View style={styles.homeScreen}>
             <View style={styles.homeContent}>
               {/* د سرپاڼې ښکلی اسلامي سرلیک */}
-              <View style={[styles.homeHeroHeader, { minHeight: 126 * homeScale, marginBottom: 5 * homeScale, paddingTop: 5 * homeScale, paddingBottom: 5 * homeScale }]}>
+              <View style={styles.homeHeroHeader}>
                 <View style={styles.headerTopActions}>
                   <TouchableOpacity
                     style={styles.headerActionButton}
@@ -1440,11 +1790,10 @@ export default function App() {
                     onPress={() => setScreen('reminders')}
                     accessibilityLabel="خبرتیاوې"
                   >
-                    <Text style={styles.headerActionIcon}>🔔</Text>
+                    <Text style={styles.headerActionIcon}>♟</Text>
                   </TouchableOpacity>
                 </View>
 
-                <Text pointerEvents="none" style={styles.headerSkyOrnament}>☪  ✦  ۞  ✦  ☪</Text>
                 <Text style={styles.headerBismillah}>
                   بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
                 </Text>
@@ -1458,7 +1807,7 @@ export default function App() {
               </View>
 
               {/* د لمانځه وختونه او لټون */}
-              <View style={[styles.prayerCard, { padding: 6 * homeScale, marginBottom: 5 * homeScale }]}>
+              <View style={styles.prayerCard}>
                 <View style={styles.prayerSearchRow}>
                   <TouchableOpacity
                     style={styles.homeSearchButton}
@@ -1511,13 +1860,13 @@ export default function App() {
               </View>
 
               {/* علمي برخې؛ سرلیک لرې شوی، د برخو تڼۍ له پخواني سیستم سره تړلې دي */}
-              <View style={[styles.homeCategoriesGrid, { marginBottom: 2 * homeScale }]}>
+              <View style={styles.homeCategoriesGrid}>
                 {SECTIONS.map((section, index) => {
                   const icons = ['۞', '◈', '⌘', '✧', '؟', '▤'];
                   return (
                     <TouchableOpacity
                       key={section}
-                      style={[styles.homeCategoryCard, { minHeight: 43 * homeScale, marginBottom: 4 * homeScale, padding: 4 * homeScale }]}
+                      style={styles.homeCategoryCard}
                       onPress={() => openSection(section)}
                       activeOpacity={0.82}
                     >
@@ -1530,11 +1879,11 @@ export default function App() {
 
               {/* د علماوو او مشایخو درسونه */}
               <TouchableOpacity
-                style={[styles.homeLessonsCard, { minHeight: 91 * homeScale, marginTop: 4 * homeScale, marginBottom: 4 * homeScale, padding: 6 * homeScale }]}
+                style={styles.homeLessonsCard}
                 onPress={() => setScreen('scholars')}
                 activeOpacity={0.88}
               >
-                <View style={[styles.homeLessonsArtwork, { minHeight: 77 * homeScale }]}>
+                <View style={styles.homeLessonsArtwork}>
                   <Text style={styles.homeBookGlow}>✧</Text>
                   <Text style={styles.homeBookIcon}>📖</Text>
                   <Text style={styles.homeBookStand}>⌁</Text>
@@ -1551,33 +1900,33 @@ export default function App() {
               </TouchableOpacity>
 
               {/* د کتابتون اړوند چټکې برخې */}
-              <View style={[styles.homeShortcutGrid, { marginTop: 3 * homeScale, marginBottom: 4 * homeScale }]}>
+              <View style={styles.homeShortcutGrid}>
                 <TouchableOpacity
-                  style={[styles.homeShortcutCard, { minHeight: 62 * homeScale, paddingVertical: 4 * homeScale }]}
+                  style={styles.homeShortcutCard}
                   onPress={() => setScreen('favorites')}
                   activeOpacity={0.82}
                 >
-                  <Text style={styles.homeShortcutIcon}>❤️</Text>
+                  <Text style={styles.homeShortcutIcon}>♥</Text>
                   <Text style={styles.homeShortcutTitle}>خوښ شوي فایلونه</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.homeShortcutCard, { minHeight: 62 * homeScale, paddingVertical: 4 * homeScale }]}
+                  style={styles.homeShortcutCard}
                   onPress={() => openSection('سوالونه او ځوابونه')}
                   activeOpacity={0.82}
                 >
-                  <Text style={styles.homeShortcutIcon}>💬</Text>
+                  <Text style={styles.homeShortcutIcon}>▤</Text>
                   <Text style={styles.homeShortcutTitle}>سوالات او جوابات</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.homeShortcutCard, { minHeight: 62 * homeScale, paddingVertical: 4 * homeScale }]}
+                  style={styles.homeShortcutCard}
                   onPress={() => openSection('عمومي درسونه او کتابونه')}
                   activeOpacity={0.82}
                 >
-                  <Text style={styles.homeShortcutIcon}>📁</Text>
+                  <Text style={styles.homeShortcutIcon}>▰</Text>
                   <Text style={styles.homeShortcutTitle}>الکتب</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.homeShortcutCard, { minHeight: 62 * homeScale, paddingVertical: 4 * homeScale }]}
+                  style={styles.homeShortcutCard}
                   onPress={() => setScreen('search')}
                   activeOpacity={0.82}
                 >
@@ -1587,9 +1936,9 @@ export default function App() {
               </View>
 
               {/* اذکار او یادښتونه */}
-              <View style={[styles.homeWideCardsRow, { marginTop: 2 * homeScale, marginBottom: 2 * homeScale }]}>
+              <View style={styles.homeWideCardsRow}>
                 <TouchableOpacity
-                  style={[styles.homeWideCard, { minHeight: 57 * homeScale, padding: 4 * homeScale }]}
+                  style={styles.homeWideCard}
                   onPress={() => setScreen('adhkarHome')}
                   activeOpacity={0.82}
                 >
@@ -1600,7 +1949,7 @@ export default function App() {
                   </View>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.homeWideCard, { minHeight: 57 * homeScale, padding: 4 * homeScale }]}
+                  style={styles.homeWideCard}
                   onPress={() => setScreen('notes')}
                   activeOpacity={0.82}
                 >
@@ -1617,9 +1966,9 @@ export default function App() {
             </View>
 
             {/* ثابت لاندې مینو؛ یوازې په کورپاڼه کې ښکاري */}
-            <View style={[styles.homeBottomNav, { minHeight: 57 * homeScale, marginBottom: Platform.OS === 'android' ? 8 : 8, paddingTop: 3 * homeScale }]}>
+            <View style={styles.homeBottomNav}>
               <TouchableOpacity style={styles.homeNavItem} activeOpacity={0.75} onPress={() => setScreen('scholars')}>
-                <Text style={styles.homeNavIcon}>📚</Text>
+                <Text style={styles.homeNavIcon}>◎</Text>
                 <Text style={styles.homeNavLabel}>کتابتون</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.homeNavItem} activeOpacity={0.75} onPress={() => setScreen('adhkarHome')}>
@@ -1627,7 +1976,7 @@ export default function App() {
                 <Text style={styles.homeNavLabel}>اذکار</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.homeNavItem} activeOpacity={0.75} onPress={() => setScreen('notes')}>
-                <Text style={styles.homeNavIcon}>📝</Text>
+                <Text style={styles.homeNavIcon}>▤</Text>
                 <Text style={styles.homeNavLabel}>نوټونه</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.homeNavItem} activeOpacity={0.75} onPress={() => setScreen('settings')}>
@@ -2023,19 +2372,17 @@ export default function App() {
             </View>
 
             {selectedItem?.audio ? (
-              <GoldButton
-                title="آډیو شریکول"
-                secondary
-                onPress={() => shareFile(selectedItem.audio, 'audio/*')}
-              />
+              <>
+                <GoldButton title="▶ بیان واوره" onPress={() => startAudio(selectedItem)} />
+                <GoldButton title="♫ آډیو شریکول" secondary onPress={() => shareFile(selectedItem.audio, 'audio/*')} />
+              </>
             ) : null}
 
             {selectedItem?.pdf ? (
-              <GoldButton
-                title="PDF شریکول"
-                secondary
-                onPress={() => shareFile(selectedItem.pdf, 'application/pdf')}
-              />
+              <>
+                <GoldButton title="▤ PDF کتاب ولوله" onPress={() => openPdf(selectedItem, 1)} />
+                <GoldButton title="PDF شریکول" secondary onPress={() => shareFile(selectedItem.pdf, 'application/pdf')} />
+              </>
             ) : null}
 
             <GoldButton
@@ -2071,6 +2418,17 @@ export default function App() {
               subtitle="شخصي یادښتونه"
               onBack={goBack}
             />
+
+            <View style={styles.bookmarkToolsRow}>
+              <TouchableOpacity style={styles.bookmarkTool} onPress={() => setScreen('audioMarks')}>
+                <Text style={styles.bookmarkToolTitle}>♫ د آډیو نښې ({audioMarks.length})</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.bookmarkTool} onPress={() => setScreen('pdfMarks')}>
+                <Text style={styles.bookmarkToolTitle}>▤ د کتاب نښې ({pdfMarks.length})</Text>
+              </TouchableOpacity>
+            </View>
+            <GoldButton title="⬆ Backup صادرول" secondary onPress={exportManualBackup} />
+            <GoldButton title="⬇ Backup بېرته راوستل" secondary onPress={importManualBackup} />
 
             <GoldButton
               title="＋ نوی نوټ"
@@ -2115,6 +2473,130 @@ export default function App() {
                   </TouchableOpacity>
                 </View>
               ))}
+          </ScrollView>
+        )}
+
+        {/* ==================================================
+            د آډیو پلیر سکرین
+        ================================================== */}
+        {screen === 'audioPlayer' && (
+          <ScrollView contentContainerStyle={styles.pageContent}>
+            <PageHeader title="د بیان اورېدل" subtitle={audioItemRef.current?.scholar || 'آډیو پلیر'} onBack={goBack} />
+            <View style={styles.audioPlayerCard}>
+              <Text style={styles.audioPlayerTitle}>{audioItemRef.current?.title || selectedItem?.title || 'بیان'}</Text>
+              <Text style={styles.audioPlayerMeta}>{audioItemRef.current?.scholar || ''}</Text>
+              <TouchableOpacity
+                activeOpacity={1}
+                onLayout={event => setAudioTrackWidth(Math.max(1, event.nativeEvent.layout.width))}
+                onPress={event => seekAudioToFraction(event.nativeEvent.locationX / audioTrackWidth)}
+                style={styles.audioProgressTrack}
+              >
+                <View style={[styles.audioProgressFill, { width: `${audioStatus.durationMillis ? Math.min(100, audioStatus.positionMillis / audioStatus.durationMillis * 100) : 0}%` }]} />
+              </TouchableOpacity>
+              <View style={styles.audioTimeRow}>
+                <Text style={styles.audioTime}>{formatDuration(audioStatus.positionMillis)}</Text>
+                <Text style={styles.audioTime}>{formatDuration(audioStatus.durationMillis)}</Text>
+              </View>
+              <View style={styles.audioControlsRow}>
+                <TouchableOpacity style={styles.audioSmallControl} onPress={() => playNextAudio(true)}><Text style={styles.audioControlText}>|◀</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.audioSmallControl} onPress={() => seekAudio(-15000)}><Text style={styles.audioControlText}>↶ 15</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.audioPlayButton} onPress={toggleAudioPlayback}><Text style={styles.audioPlayText}>{audioStatus.isPlaying ? 'Ⅱ' : '▶'}</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.audioSmallControl} onPress={() => seekAudio(15000)}><Text style={styles.audioControlText}>15 ↷</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.audioSmallControl} onPress={() => playNextAudio(false)}><Text style={styles.audioControlText}>▶|</Text></TouchableOpacity>
+              </View>
+              <View style={styles.audioRateRow}>
+                {[0.75, 1, 1.25, 1.5, 2].map(rate => (
+                  <TouchableOpacity key={rate} style={[styles.audioRateButton, audioStatus.rate === rate && styles.audioRateActive]} onPress={() => changeAudioRate(rate)}>
+                    <Text style={styles.audioRateText}>{rate}x</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+            <View style={styles.bookmarkCard}>
+              <Text style={styles.cardHeading}>دا ځای نښه او یادښت کړه</Text>
+              <Text style={styles.bookmarkPosition}>اوسنی وخت: {formatDuration(audioStatus.positionMillis)}</Text>
+              <Field label="شخصي یادښت (اختیاري)" value={audioBookmarkText} onChangeText={setAudioBookmarkText} placeholder="مهمه خبره دلته ولیکئ..." multiline />
+              <GoldButton title="★ دا نقطه خوندي کړه" onPress={saveAudioBookmark} />
+            </View>
+            <GoldButton title={`د دې بیان ټولې نښې (${audioMarks.filter(mark => mark.resourceId === audioItemRef.current?.id).length})`} secondary onPress={() => setScreen('audioMarks')} />
+          </ScrollView>
+        )}
+
+        {/* د PDF لوستلو سکرین */}
+        {screen === 'pdfReader' && (
+          <View style={styles.pdfScreen}>
+            <View style={styles.pdfHeader}>
+              <TouchableOpacity onPress={goBack} style={styles.pdfHeaderButton}><Text style={styles.pdfHeaderButtonText}>→ شاته</Text></TouchableOpacity>
+              <Text numberOfLines={1} style={styles.pdfHeaderTitle}>{selectedItem?.title || 'کتاب'}</Text>
+              <Text style={styles.pdfPageCounter}>{pdfCurrentPage}/{pdfTotalPages || '—'}</Text>
+            </View>
+            <View style={styles.pdfViewerWrap}>
+              {selectedItem?.pdf ? (
+                <Pdf
+                  key={`${selectedItem.id}-${pdfInitialPage}`}
+                  source={{ uri: selectedItem.pdf, cache: true }}
+                  page={pdfInitialPage}
+                  onLoadComplete={(numberOfPages) => setPdfTotalPages(numberOfPages)}
+                  onPageChanged={(page) => {
+                    setPdfCurrentPage(page);
+                    AsyncStorage.setItem(STORAGE.pdfProgress, JSON.stringify({ resourceId: selectedItem.id, page })).catch(() => {});
+                  }}
+                  onError={() => Alert.alert('PDF ستونزه', 'کتاب پرانیستل نه شو. د فایل URI او د PDF ماډیول نصب وګورئ.')}
+                  style={styles.pdfViewer}
+                  enablePaging={false}
+                  horizontal={false}
+                  fitPolicy={0}
+                  spacing={8}
+                />
+              ) : <Text style={styles.emptyText}>PDF فایل نشته.</Text>}
+            </View>
+            <View style={styles.pdfBookmarkPanel}>
+              <Text style={styles.pdfBookmarkTitle}>مخ {pdfCurrentPage} نښه کړه</Text>
+              <TextInput style={styles.bookmarkInput} value={pdfBookmarkText} onChangeText={setPdfBookmarkText} placeholder="د دې مخ شخصي یادښت (اختیاري)" placeholderTextColor={COLORS.muted} multiline />
+              <View style={styles.pdfActionRow}>
+                <TouchableOpacity style={styles.pdfActionButton} onPress={savePdfBookmark}><Text style={styles.pdfActionText}>★ نښه خوندي کړه</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.pdfActionButton} onPress={() => shareFile(selectedItem?.pdf, 'application/pdf')}><Text style={styles.pdfActionText}>شریکول</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.pdfActionButton} onPress={() => setScreen('pdfMarks')}><Text style={styles.pdfActionText}>نښې ({pdfMarks.length})</Text></TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* د آډیو خوندي نښې - له PDF نښو جلا */}
+        {screen === 'audioMarks' && (
+          <ScrollView contentContainerStyle={styles.pageContent}>
+            <PageHeader title="د آډیو نښې" subtitle="خوندي شوي دقیق وختونه او شخصي یادښتونه" onBack={goBack} />
+            {audioMarks.map(mark => (
+              <View key={mark.id} style={styles.bookmarkListCard}>
+                <TouchableOpacity style={styles.flexText} onPress={() => openAudioMark(mark)}>
+                  <Text style={styles.lessonTitle}>{mark.resourceTitle}</Text>
+                  <Text style={styles.bookmarkPosition}>{formatDuration(mark.positionMillis)}</Text>
+                  {!!mark.note && <Text style={styles.smallMuted}>{mark.note}</Text>}
+                  <Text style={styles.bookmarkOpenText}>▶ له همدې ځایه واوره</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => deleteAudioMark(mark.id)}><Text style={styles.deleteIcon}>حذف</Text></TouchableOpacity>
+              </View>
+            ))}
+            {!audioMarks.length && <Text style={styles.emptyText}>تر اوسه د آډیو کومه نښه نه ده خوندي شوې.</Text>}
+          </ScrollView>
+        )}
+
+        {/* د PDF خوندي نښې - له آډیو نښو جلا */}
+        {screen === 'pdfMarks' && (
+          <ScrollView contentContainerStyle={styles.pageContent}>
+            <PageHeader title="د کتابونو نښې" subtitle="خوندي شوي مخونه او شخصي یادښتونه" onBack={goBack} />
+            {pdfMarks.map(mark => (
+              <View key={mark.id} style={styles.bookmarkListCard}>
+                <TouchableOpacity style={styles.flexText} onPress={() => openPdfMark(mark)}>
+                  <Text style={styles.lessonTitle}>{mark.resourceTitle}</Text>
+                  <Text style={styles.bookmarkPosition}>مخ {mark.page}</Text>
+                  {!!mark.note && <Text style={styles.smallMuted}>{mark.note}</Text>}
+                  <Text style={styles.bookmarkOpenText}>▤ همدا مخ پرانیزه</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => deletePdfMark(mark.id)}><Text style={styles.deleteIcon}>حذف</Text></TouchableOpacity>
+              </View>
+            ))}
+            {!pdfMarks.length && <Text style={styles.emptyText}>تر اوسه د کتاب کوم مخ نه دی نښه شوی.</Text>}
           </ScrollView>
         )}
 
@@ -2753,17 +3235,15 @@ const styles = StyleSheet.create({
 
   homeScreen: {
     flex: 1,
-    backgroundColor: '#031B12',
-    overflow: 'hidden'
+    backgroundColor: '#E8EEE8'
   },
 
   homeContent: {
     flex: 1,
-    justifyContent: 'space-evenly',
-    paddingHorizontal: 8,
-    paddingTop: 3,
-    paddingBottom: 2,
-    overflow: 'hidden'
+    justifyContent: 'flex-start',
+    paddingHorizontal: 7,
+    paddingTop: 2,
+    paddingBottom: 2
   },
 
   homeHeroHeader: {
@@ -2775,11 +3255,11 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#034329',
+    backgroundColor: '#064027',
     borderWidth: 3,
     borderColor: COLORS.gold,
-    borderTopLeftRadius: 155,
-    borderTopRightRadius: 155,
+    borderTopLeftRadius: 145,
+    borderTopRightRadius: 145,
     borderBottomLeftRadius: 27,
     borderBottomRightRadius: 27,
     overflow: 'hidden',
@@ -2815,15 +3295,6 @@ const styles = StyleSheet.create({
   },
 
   headerTopSpacer: { flex: 1 },
-
-  headerSkyOrnament: {
-    position: 'absolute',
-    top: 25,
-    color: COLORS.gold,
-    opacity: 0.16,
-    fontSize: 25,
-    letterSpacing: 5
-  },
 
   headerBismillah: {
     color: COLORS.goldLight,
@@ -2866,7 +3337,7 @@ const styles = StyleSheet.create({
   },
 
   prayerCard: {
-    backgroundColor: '#064A30',
+    backgroundColor: '#08452C',
     borderWidth: 3,
     borderColor: COLORS.gold,
     borderRadius: 27,
@@ -2986,7 +3457,7 @@ const styles = StyleSheet.create({
     minHeight: 65,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#075536',
+    backgroundColor: '#075033',
     borderWidth: 3,
     borderColor: COLORS.gold,
     borderRadius: 31,
@@ -3075,7 +3546,7 @@ const styles = StyleSheet.create({
   homeShortcutCard: {
     flex: 1,
     minHeight: 43,
-    backgroundColor: '#075536',
+    backgroundColor: '#075033',
     borderWidth: 3,
     borderColor: COLORS.gold,
     borderRadius: 13,
@@ -3117,7 +3588,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    backgroundColor: '#075536',
+    backgroundColor: '#075033',
     borderWidth: 3,
     borderColor: COLORS.gold,
     borderRadius: 13,
@@ -3183,7 +3654,7 @@ const styles = StyleSheet.create({
   homeCategoryCard: {
     width: '32%',
     minHeight: 32,
-    backgroundColor: '#0B5638',
+    backgroundColor: '#105239',
     borderWidth: 1,
     borderColor: COLORS.gold,
     borderRadius: 9,
@@ -3234,7 +3705,7 @@ const styles = StyleSheet.create({
   homeBottomNav: {
     minHeight: 54,
     // مینو د سور نښه شوي حد څخه پورته ساتل کېږي؛ لاندې د سیستم navigation لپاره تشه پاتې ده
-    marginBottom: Platform.OS === 'android' ? 8 : 8,
+    marginBottom: Platform.OS === 'android' ? 42 : 12,
     flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-around',
@@ -3655,7 +4126,45 @@ const styles = StyleSheet.create({
     borderRadius: 11,
     borderWidth: 1,
     borderColor: COLORS.gold
-  }
+  },
+
+  bookmarkToolsRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+  bookmarkTool: { flex: 1, backgroundColor: COLORS.card, borderColor: COLORS.gold, borderWidth: 1, borderRadius: 12, padding: 13, alignItems: 'center' },
+  bookmarkToolTitle: { color: COLORS.goldLight, fontSize: 12, fontWeight: 'bold' },
+  audioPlayerCard: { backgroundColor: '#FDFCF9', borderRadius: 24, padding: 20, marginBottom: 14, borderWidth: 1, borderColor: '#E7E1D5', elevation: 3 },
+  audioPlayerTitle: { color: '#1B2921', fontSize: 20, fontWeight: 'bold', textAlign: 'center' },
+  audioPlayerMeta: { color: '#77766F', fontSize: 12, textAlign: 'center', marginTop: 5, marginBottom: 24 },
+  audioProgressTrack: { height: 7, borderRadius: 8, backgroundColor: '#D5DED8', overflow: 'hidden' },
+  audioProgressFill: { height: 7, borderRadius: 8, backgroundColor: '#176149' },
+  audioTimeRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
+  audioTime: { color: '#59645E', fontSize: 12 },
+  audioControlsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 25, marginBottom: 22 },
+  audioSmallControl: { minWidth: 42, height: 42, alignItems: 'center', justifyContent: 'center' },
+  audioControlText: { color: '#234A3B', fontSize: 15, fontWeight: 'bold' },
+  audioPlayButton: { width: 70, height: 70, borderRadius: 35, backgroundColor: '#176149', alignItems: 'center', justifyContent: 'center', elevation: 5 },
+  audioPlayText: { color: '#FFFFFF', fontSize: 28, fontWeight: 'bold' },
+  audioRateRow: { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderColor: '#E4E0D7', paddingTop: 14 },
+  audioRateButton: { borderRadius: 18, paddingHorizontal: 10, paddingVertical: 7, borderWidth: 1, borderColor: '#DDD8CC' },
+  audioRateActive: { backgroundColor: '#176149', borderColor: '#176149' },
+  audioRateText: { color: '#4D5B53', fontSize: 11 },
+  bookmarkCard: { backgroundColor: COLORS.card, borderColor: COLORS.gold, borderWidth: 1, borderRadius: 16, padding: 14, marginBottom: 14 },
+  bookmarkPosition: { color: COLORS.gold, fontSize: 13, fontWeight: 'bold', textAlign: 'right', marginVertical: 5 },
+  bookmarkListCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.card, borderWidth: 1, borderColor: COLORS.border, borderRadius: 13, padding: 13, marginBottom: 9, gap: 10 },
+  bookmarkOpenText: { color: COLORS.gold, fontSize: 12, fontWeight: 'bold', textAlign: 'right', marginTop: 7 },
+  pdfScreen: { flex: 1, backgroundColor: '#EAE7DF' },
+  pdfHeader: { minHeight: 52, backgroundColor: COLORS.card, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10, borderBottomWidth: 1, borderColor: COLORS.gold },
+  pdfHeaderButton: { padding: 8 },
+  pdfHeaderButtonText: { color: COLORS.gold, fontWeight: 'bold' },
+  pdfHeaderTitle: { color: COLORS.white, flex: 1, textAlign: 'center', fontWeight: 'bold', marginHorizontal: 8 },
+  pdfPageCounter: { color: COLORS.goldLight, minWidth: 45, textAlign: 'right' },
+  pdfViewerWrap: { flex: 1 },
+  pdfViewer: { flex: 1, width: '100%', backgroundColor: '#EAE7DF' },
+  pdfBookmarkPanel: { backgroundColor: COLORS.card, borderTopWidth: 2, borderColor: COLORS.gold, padding: 10 },
+  pdfBookmarkTitle: { color: COLORS.gold, textAlign: 'right', fontWeight: 'bold', marginBottom: 5 },
+  bookmarkInput: { minHeight: 42, maxHeight: 76, color: COLORS.white, borderColor: COLORS.border, borderWidth: 1, borderRadius: 9, padding: 9, textAlign: 'right', marginBottom: 8 },
+  pdfActionRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 6 },
+  pdfActionButton: { flex: 1, backgroundColor: COLORS.green, borderRadius: 8, padding: 10, alignItems: 'center' },
+  pdfActionText: { color: COLORS.goldLight, fontSize: 11, fontWeight: 'bold' }
 
 });
   // ==================================================
