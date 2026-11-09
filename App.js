@@ -15,7 +15,8 @@ import {
   Platform,
   ActivityIndicator,
   BackHandler,
-  KeyboardAvoidingView
+  KeyboardAvoidingView,
+  useWindowDimensions
 } from 'react-native';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -160,6 +161,10 @@ const DHIKR_CATEGORIES = [
 // ==================================================
 
 export default function App() {
+
+  const { height: windowHeight } = useWindowDimensions();
+  // د کورپاڼې ټول عناصر د موبایل د سکرین له لوړوالي سره برابرېږي؛ سکرول نه کارول کېږي.
+  const homeScale = Math.max(0.72, Math.min(1, (windowHeight - 90) / 700));
 
   // ------------------------------------------------
   // 10.1 - د سکرینونو حالت
@@ -1407,7 +1412,7 @@ export default function App() {
   return (
     <View style={styles.container}>
       <StatusBar
-        backgroundColor={COLORS.background}
+        backgroundColor={screen === 'home' ? '#031B12' : COLORS.background}
         barStyle="light-content"
       />
 
@@ -1420,7 +1425,7 @@ export default function App() {
           <View style={styles.homeScreen}>
             <View style={styles.homeContent}>
               {/* د سرپاڼې ښکلی اسلامي سرلیک */}
-              <View style={styles.homeHeroHeader}>
+              <View style={[styles.homeHeroHeader, { minHeight: 126 * homeScale, marginBottom: 5 * homeScale, paddingTop: 5 * homeScale, paddingBottom: 5 * homeScale }]}>
                 <View style={styles.headerTopActions}>
                   <TouchableOpacity
                     style={styles.headerActionButton}
@@ -1435,10 +1440,11 @@ export default function App() {
                     onPress={() => setScreen('reminders')}
                     accessibilityLabel="خبرتیاوې"
                   >
-                    <Text style={styles.headerActionIcon}>♟</Text>
+                    <Text style={styles.headerActionIcon}>🔔</Text>
                   </TouchableOpacity>
                 </View>
 
+                <Text pointerEvents="none" style={styles.headerSkyOrnament}>☪  ✦  ۞  ✦  ☪</Text>
                 <Text style={styles.headerBismillah}>
                   بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
                 </Text>
@@ -1452,7 +1458,7 @@ export default function App() {
               </View>
 
               {/* د لمانځه وختونه او لټون */}
-              <View style={styles.prayerCard}>
+              <View style={[styles.prayerCard, { padding: 6 * homeScale, marginBottom: 5 * homeScale }]}>
                 <View style={styles.prayerSearchRow}>
                   <TouchableOpacity
                     style={styles.homeSearchButton}
@@ -1505,13 +1511,13 @@ export default function App() {
               </View>
 
               {/* علمي برخې؛ سرلیک لرې شوی، د برخو تڼۍ له پخواني سیستم سره تړلې دي */}
-              <View style={styles.homeCategoriesGrid}>
+              <View style={[styles.homeCategoriesGrid, { marginBottom: 2 * homeScale }]}>
                 {SECTIONS.map((section, index) => {
                   const icons = ['۞', '◈', '⌘', '✧', '؟', '▤'];
                   return (
                     <TouchableOpacity
                       key={section}
-                      style={styles.homeCategoryCard}
+                      style={[styles.homeCategoryCard, { minHeight: 43 * homeScale, marginBottom: 4 * homeScale, padding: 4 * homeScale }]}
                       onPress={() => openSection(section)}
                       activeOpacity={0.82}
                     >
@@ -1524,11 +1530,11 @@ export default function App() {
 
               {/* د علماوو او مشایخو درسونه */}
               <TouchableOpacity
-                style={styles.homeLessonsCard}
+                style={[styles.homeLessonsCard, { minHeight: 91 * homeScale, marginTop: 4 * homeScale, marginBottom: 4 * homeScale, padding: 6 * homeScale }]}
                 onPress={() => setScreen('scholars')}
                 activeOpacity={0.88}
               >
-                <View style={styles.homeLessonsArtwork}>
+                <View style={[styles.homeLessonsArtwork, { minHeight: 77 * homeScale }]}>
                   <Text style={styles.homeBookGlow}>✧</Text>
                   <Text style={styles.homeBookIcon}>📖</Text>
                   <Text style={styles.homeBookStand}>⌁</Text>
@@ -1545,33 +1551,33 @@ export default function App() {
               </TouchableOpacity>
 
               {/* د کتابتون اړوند چټکې برخې */}
-              <View style={styles.homeShortcutGrid}>
+              <View style={[styles.homeShortcutGrid, { marginTop: 3 * homeScale, marginBottom: 4 * homeScale }]}>
                 <TouchableOpacity
-                  style={styles.homeShortcutCard}
+                  style={[styles.homeShortcutCard, { minHeight: 62 * homeScale, paddingVertical: 4 * homeScale }]}
                   onPress={() => setScreen('favorites')}
                   activeOpacity={0.82}
                 >
-                  <Text style={styles.homeShortcutIcon}>♥</Text>
+                  <Text style={styles.homeShortcutIcon}>❤️</Text>
                   <Text style={styles.homeShortcutTitle}>خوښ شوي فایلونه</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.homeShortcutCard}
+                  style={[styles.homeShortcutCard, { minHeight: 62 * homeScale, paddingVertical: 4 * homeScale }]}
                   onPress={() => openSection('سوالونه او ځوابونه')}
                   activeOpacity={0.82}
                 >
-                  <Text style={styles.homeShortcutIcon}>▤</Text>
+                  <Text style={styles.homeShortcutIcon}>💬</Text>
                   <Text style={styles.homeShortcutTitle}>سوالات او جوابات</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.homeShortcutCard}
+                  style={[styles.homeShortcutCard, { minHeight: 62 * homeScale, paddingVertical: 4 * homeScale }]}
                   onPress={() => openSection('عمومي درسونه او کتابونه')}
                   activeOpacity={0.82}
                 >
-                  <Text style={styles.homeShortcutIcon}>▰</Text>
+                  <Text style={styles.homeShortcutIcon}>📁</Text>
                   <Text style={styles.homeShortcutTitle}>الکتب</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.homeShortcutCard}
+                  style={[styles.homeShortcutCard, { minHeight: 62 * homeScale, paddingVertical: 4 * homeScale }]}
                   onPress={() => setScreen('search')}
                   activeOpacity={0.82}
                 >
@@ -1581,9 +1587,9 @@ export default function App() {
               </View>
 
               {/* اذکار او یادښتونه */}
-              <View style={styles.homeWideCardsRow}>
+              <View style={[styles.homeWideCardsRow, { marginTop: 2 * homeScale, marginBottom: 2 * homeScale }]}>
                 <TouchableOpacity
-                  style={styles.homeWideCard}
+                  style={[styles.homeWideCard, { minHeight: 57 * homeScale, padding: 4 * homeScale }]}
                   onPress={() => setScreen('adhkarHome')}
                   activeOpacity={0.82}
                 >
@@ -1594,7 +1600,7 @@ export default function App() {
                   </View>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.homeWideCard}
+                  style={[styles.homeWideCard, { minHeight: 57 * homeScale, padding: 4 * homeScale }]}
                   onPress={() => setScreen('notes')}
                   activeOpacity={0.82}
                 >
@@ -1611,9 +1617,9 @@ export default function App() {
             </View>
 
             {/* ثابت لاندې مینو؛ یوازې په کورپاڼه کې ښکاري */}
-            <View style={styles.homeBottomNav}>
+            <View style={[styles.homeBottomNav, { minHeight: 57 * homeScale, marginBottom: Platform.OS === 'android' ? 8 : 8, paddingTop: 3 * homeScale }]}>
               <TouchableOpacity style={styles.homeNavItem} activeOpacity={0.75} onPress={() => setScreen('scholars')}>
-                <Text style={styles.homeNavIcon}>◎</Text>
+                <Text style={styles.homeNavIcon}>📚</Text>
                 <Text style={styles.homeNavLabel}>کتابتون</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.homeNavItem} activeOpacity={0.75} onPress={() => setScreen('adhkarHome')}>
@@ -1621,7 +1627,7 @@ export default function App() {
                 <Text style={styles.homeNavLabel}>اذکار</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.homeNavItem} activeOpacity={0.75} onPress={() => setScreen('notes')}>
-                <Text style={styles.homeNavIcon}>▤</Text>
+                <Text style={styles.homeNavIcon}>📝</Text>
                 <Text style={styles.homeNavLabel}>نوټونه</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.homeNavItem} activeOpacity={0.75} onPress={() => setScreen('settings')}>
@@ -2747,15 +2753,17 @@ const styles = StyleSheet.create({
 
   homeScreen: {
     flex: 1,
-    backgroundColor: '#E8EEE8'
+    backgroundColor: '#031B12',
+    overflow: 'hidden'
   },
 
   homeContent: {
     flex: 1,
-    justifyContent: 'flex-start',
-    paddingHorizontal: 7,
-    paddingTop: 2,
-    paddingBottom: 2
+    justifyContent: 'space-evenly',
+    paddingHorizontal: 8,
+    paddingTop: 3,
+    paddingBottom: 2,
+    overflow: 'hidden'
   },
 
   homeHeroHeader: {
@@ -2767,11 +2775,11 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#064027',
+    backgroundColor: '#034329',
     borderWidth: 3,
     borderColor: COLORS.gold,
-    borderTopLeftRadius: 145,
-    borderTopRightRadius: 145,
+    borderTopLeftRadius: 155,
+    borderTopRightRadius: 155,
     borderBottomLeftRadius: 27,
     borderBottomRightRadius: 27,
     overflow: 'hidden',
@@ -2807,6 +2815,15 @@ const styles = StyleSheet.create({
   },
 
   headerTopSpacer: { flex: 1 },
+
+  headerSkyOrnament: {
+    position: 'absolute',
+    top: 25,
+    color: COLORS.gold,
+    opacity: 0.16,
+    fontSize: 25,
+    letterSpacing: 5
+  },
 
   headerBismillah: {
     color: COLORS.goldLight,
@@ -2849,7 +2866,7 @@ const styles = StyleSheet.create({
   },
 
   prayerCard: {
-    backgroundColor: '#08452C',
+    backgroundColor: '#064A30',
     borderWidth: 3,
     borderColor: COLORS.gold,
     borderRadius: 27,
@@ -2969,7 +2986,7 @@ const styles = StyleSheet.create({
     minHeight: 65,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#075033',
+    backgroundColor: '#075536',
     borderWidth: 3,
     borderColor: COLORS.gold,
     borderRadius: 31,
@@ -3058,7 +3075,7 @@ const styles = StyleSheet.create({
   homeShortcutCard: {
     flex: 1,
     minHeight: 43,
-    backgroundColor: '#075033',
+    backgroundColor: '#075536',
     borderWidth: 3,
     borderColor: COLORS.gold,
     borderRadius: 13,
@@ -3100,7 +3117,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    backgroundColor: '#075033',
+    backgroundColor: '#075536',
     borderWidth: 3,
     borderColor: COLORS.gold,
     borderRadius: 13,
@@ -3166,7 +3183,7 @@ const styles = StyleSheet.create({
   homeCategoryCard: {
     width: '32%',
     minHeight: 32,
-    backgroundColor: '#105239',
+    backgroundColor: '#0B5638',
     borderWidth: 1,
     borderColor: COLORS.gold,
     borderRadius: 9,
@@ -3217,7 +3234,7 @@ const styles = StyleSheet.create({
   homeBottomNav: {
     minHeight: 54,
     // مینو د سور نښه شوي حد څخه پورته ساتل کېږي؛ لاندې د سیستم navigation لپاره تشه پاتې ده
-    marginBottom: Platform.OS === 'android' ? 42 : 12,
+    marginBottom: Platform.OS === 'android' ? 8 : 8,
     flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-around',
