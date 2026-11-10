@@ -1,4 +1,4 @@
-  
+   
 import React, { useState, useEffect, useRef } from 'react';
 
 import {
@@ -26,6 +26,7 @@ import * as Location from 'expo-location';
 import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
 import Pdf from 'react-native-pdf';
+import { Ionicons } from '@expo/vector-icons';
 
 import {
   PrayerTimes,
@@ -162,6 +163,51 @@ const DHIKR_CATEGORIES = [
   'عمومي اذکار'
 ];
 
+// د کورپاڼې د ډیزاین د شخصي تنظیماتو اصلي ارزښتونه
+const DEFAULT_HOME_DESIGN = {
+  pageBackground: '#E8EEE8',
+  headerBackground: '#064027',
+  prayerBackground: '#08452C',
+  navBackground: '#022417',
+  folderBackground: '#075033',
+  folderTextColor: '#FFFFFF',
+  folderIconColor: '#E4C879',
+  folderBorderColor: '#E4C879',
+  folderBorderWidth: 2,
+  folderBorderStyle: 'solid',
+  folderRadius: 14,
+  folderHeight: 58,
+  titleSize: 12,
+  iconSize: 22,
+  fontFamily: 'System',
+  gap: 2,
+  navOffset: 48,
+  perFolder: {}
+};
+
+const HOME_FOLDER_OPTIONS = [
+  { key: 'section_0', label: 'د قرآن کریم زده کړې' },
+  { key: 'section_1', label: 'د احادیثو زده کړې' },
+  { key: 'section_2', label: 'تاریخ او سیرت' },
+  { key: 'section_3', label: 'اسلامي علوم او فنون' },
+  { key: 'section_4', label: 'سوالونه او ځوابونه' },
+  { key: 'section_5', label: 'عمومي درسونه او کتابونه' },
+  { key: 'scholars', label: 'دروس المشایخ' },
+  { key: 'shortcut_0', label: 'خوښ شوي فایلونه' },
+  { key: 'shortcut_1', label: 'سوالات او جوابات' },
+  { key: 'shortcut_2', label: 'الکتب' },
+  { key: 'shortcut_3', label: 'د زده کړې مسیر' },
+  { key: 'wide_0', label: 'د سهار او ماښام اذکار' },
+  { key: 'wide_1', label: 'زما نوټونه' }
+];
+
+const HOME_COLOR_OPTIONS = [
+  '#075033', '#064027', '#123D68', '#4A286B', '#743B22', '#303C49',
+  '#7A2638', '#315B42', '#E8EEE8', '#17231B', '#FFFFFF', '#F1E4C5',
+  '#FFFFFF', '#F5E5B1', '#E4C879', '#B8D8C0', '#222222', '#8BD3FF',
+  '#D66B6B', '#A88BE8', '#79B98A', '#C7A2A2'
+];
+
 // ==================================================
 // 10 - د اصلي اپلیکیشن پیل
 // ==================================================
@@ -174,6 +220,8 @@ export default function App() {
 
   const [screen, setScreen] = useState('home');
   const [previousScreen, setPreviousScreen] = useState('home');
+  const [designFolderKey, setDesignFolderKey] = useState('section_0');
+  const [designCustomColor, setDesignCustomColor] = useState('#E4C879');
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -365,6 +413,61 @@ export default function App() {
 
     setSettings(updated);
     await saveData(STORAGE.settings, updated);
+  }
+
+  const homeDesign = { ...DEFAULT_HOME_DESIGN, ...(settings.homeDesign || {}) };
+
+  function getHomeFolderDesign(key) {
+    return { ...homeDesign, ...(homeDesign.perFolder?.[key] || {}) };
+  }
+
+  async function updateHomeDesign(patch, folderKey = null) {
+    const current = { ...DEFAULT_HOME_DESIGN, ...(settings.homeDesign || {}) };
+    let next;
+    if (folderKey) {
+      next = {
+        ...current,
+        perFolder: {
+          ...(current.perFolder || {}),
+          [folderKey]: { ...(current.perFolder?.[folderKey] || {}), ...patch }
+        }
+      };
+    } else {
+      next = { ...current, ...patch };
+    }
+    await updateSettings({ homeDesign: next });
+  }
+
+  function homeFolderCardStyle(key, baseStyle) {
+    const d = getHomeFolderDesign(key);
+    return [baseStyle, {
+      backgroundColor: d.folderBackground,
+      borderColor: d.folderBorderColor,
+      borderWidth: d.folderBorderWidth,
+      borderStyle: d.folderBorderStyle,
+      borderRadius: d.folderRadius,
+      minHeight: d.folderHeight,
+      marginBottom: d.gap
+    }];
+  }
+
+  function homeFolderTitleStyle(key, baseStyle) {
+    const d = getHomeFolderDesign(key);
+    return [baseStyle, { color: d.folderTextColor, fontSize: d.titleSize, fontFamily: d.fontFamily }];
+  }
+
+  function homeFolderIconStyle(key, baseStyle) {
+    const d = getHomeFolderDesign(key);
+    return [baseStyle, { color: d.folderIconColor, fontSize: d.iconSize }];
+  }
+
+  function applyCustomHomeColor(target, folderKey = null) {
+    const color = designCustomColor.trim();
+    if (!/^#[0-9A-Fa-f]{6}$/.test(color)) {
+      Alert.alert('ناسم رنګ', 'مهرباني وکړئ رنګ د #RRGGBB په بڼه ولیکئ، لکه #12A4EF.');
+      return;
+    }
+    updateHomeDesign({ [target]: color }, folderKey);
   }
 
   async function saveBooks(updated) {
@@ -1772,17 +1875,17 @@ export default function App() {
       >
 
         {screen === 'home' && (
-          <View style={styles.homeScreen}>
-            <View style={styles.homeContent}>
+          <View style={[styles.homeScreen, { backgroundColor: homeDesign.pageBackground }]}>
+            <ScrollView style={styles.homeContent} contentContainerStyle={styles.homeScrollContent} showsVerticalScrollIndicator={false}>
               {/* د سرپاڼې ښکلی اسلامي سرلیک */}
-              <View style={styles.homeHeroHeader}>
+              <View style={[styles.homeHeroHeader, { backgroundColor: homeDesign.headerBackground }]}>
                 <View style={styles.headerTopActions}>
                   <TouchableOpacity
                     style={styles.headerActionButton}
                     onPress={() => setScreen('settings')}
                     accessibilityLabel="تنظیمات"
                   >
-                    <Text style={styles.headerActionIcon}>⚙</Text>
+                    <Ionicons name="settings-outline" size={18} color={COLORS.gold} />
                   </TouchableOpacity>
                   <View style={styles.headerTopSpacer} />
                   <TouchableOpacity
@@ -1790,7 +1893,7 @@ export default function App() {
                     onPress={() => setScreen('reminders')}
                     accessibilityLabel="خبرتیاوې"
                   >
-                    <Text style={styles.headerActionIcon}>♟</Text>
+                    <Ionicons name="notifications-outline" size={18} color={COLORS.gold} />
                   </TouchableOpacity>
                 </View>
 
@@ -1807,14 +1910,14 @@ export default function App() {
               </View>
 
               {/* د لمانځه وختونه او لټون */}
-              <View style={styles.prayerCard}>
+              <View style={[styles.prayerCard, { backgroundColor: homeDesign.prayerBackground }]}>
                 <View style={styles.prayerSearchRow}>
                   <TouchableOpacity
                     style={styles.homeSearchButton}
                     onPress={() => setScreen('search')}
                     activeOpacity={0.8}
                   >
-                    <Text style={styles.homeSearchIcon}>⌕</Text>
+                    <Ionicons name="search-outline" size={19} color={COLORS.gold} />
                     <Text style={styles.homeSearchPlaceholder}>پلټون...</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -1823,7 +1926,7 @@ export default function App() {
                     activeOpacity={0.8}
                   >
                     <Text style={styles.prayerHeadingText}>اوقات الصلاة</Text>
-                    <Text style={styles.prayerHeadingIcon}>◷</Text>
+                    <Ionicons name="time-outline" size={18} color={COLORS.goldLight} />
                   </TouchableOpacity>
                 </View>
 
@@ -1853,7 +1956,7 @@ export default function App() {
                     <ActivityIndicator color={COLORS.gold} />
                   ) : (
                     <Text style={styles.homePrayerRefreshText}>
-                      {settings.city || 'خپل موقعیت وټاکئ'}  ·  ↻ وختونه تازه کړئ
+                      {settings.city || 'خپل موقعیت وټاکئ'}  ·  ⟳ وختونه تازه کړئ
                     </Text>
                   )}
                 </TouchableOpacity>
@@ -1862,16 +1965,16 @@ export default function App() {
               {/* علمي برخې؛ سرلیک لرې شوی، د برخو تڼۍ له پخواني سیستم سره تړلې دي */}
               <View style={styles.homeCategoriesGrid}>
                 {SECTIONS.map((section, index) => {
-                  const icons = ['۞', '◈', '⌘', '✧', '؟', '▤'];
+                  const icons = ['book-outline', 'library-outline', 'time-outline', 'school-outline', 'help-circle-outline', 'albums-outline'];
                   return (
                     <TouchableOpacity
                       key={section}
-                      style={styles.homeCategoryCard}
+                      style={homeFolderCardStyle(`section_${index}`, styles.homeCategoryCard)}
                       onPress={() => openSection(section)}
                       activeOpacity={0.82}
                     >
-                      <Text style={styles.homeCategoryIcon}>{icons[index]}</Text>
-                      <Text style={styles.homeCategoryTitle}>{section}</Text>
+                      <Ionicons name={icons[index]} color={getHomeFolderDesign(`section_${index}`).folderIconColor} size={getHomeFolderDesign(`section_${index}`).iconSize} />
+                      <Text style={homeFolderTitleStyle(`section_${index}`, styles.homeCategoryTitle)}>{section}</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -1879,18 +1982,18 @@ export default function App() {
 
               {/* د علماوو او مشایخو درسونه */}
               <TouchableOpacity
-                style={styles.homeLessonsCard}
+                style={homeFolderCardStyle('scholars', styles.homeLessonsCard)}
                 onPress={() => setScreen('scholars')}
                 activeOpacity={0.88}
               >
                 <View style={styles.homeLessonsArtwork}>
                   <Text style={styles.homeBookGlow}>✧</Text>
-                  <Text style={styles.homeBookIcon}>📖</Text>
+                  <Ionicons name="book-outline" color={getHomeFolderDesign('scholars').folderIconColor} size={getHomeFolderDesign('scholars').iconSize + 8} />
                   <Text style={styles.homeBookStand}>⌁</Text>
                 </View>
                 <View style={styles.homeLessonsText}>
-                  <Text style={styles.homeLessonsTitle}>دروس المشایخ</Text>
-                  <Text style={styles.homeLessonsSubtitle}>
+                  <Text style={homeFolderTitleStyle('scholars', styles.homeLessonsTitle)}>دروس المشایخ</Text>
+                  <Text style={[styles.homeLessonsSubtitle, { color: getHomeFolderDesign('scholars').folderTextColor, fontSize: Math.max(9, getHomeFolderDesign('scholars').titleSize - 2), fontFamily: getHomeFolderDesign('scholars').fontFamily }]}>
                     د علماوو او مشایخو علمي درسونه
                   </Text>
                   <View style={styles.homeLessonsButton}>
@@ -1902,89 +2005,89 @@ export default function App() {
               {/* د کتابتون اړوند چټکې برخې */}
               <View style={styles.homeShortcutGrid}>
                 <TouchableOpacity
-                  style={styles.homeShortcutCard}
+                  style={homeFolderCardStyle('shortcut_0', styles.homeShortcutCard)}
                   onPress={() => setScreen('favorites')}
                   activeOpacity={0.82}
                 >
-                  <Text style={styles.homeShortcutIcon}>♥</Text>
-                  <Text style={styles.homeShortcutTitle}>خوښ شوي فایلونه</Text>
+                  <Ionicons name="heart-outline" color={getHomeFolderDesign('shortcut_0').folderIconColor} size={getHomeFolderDesign('shortcut_0').iconSize} />
+                  <Text style={homeFolderTitleStyle('shortcut_0', styles.homeShortcutTitle)}>خوښ شوي فایلونه</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.homeShortcutCard}
+                  style={homeFolderCardStyle('shortcut_1', styles.homeShortcutCard)}
                   onPress={() => openSection('سوالونه او ځوابونه')}
                   activeOpacity={0.82}
                 >
-                  <Text style={styles.homeShortcutIcon}>▤</Text>
-                  <Text style={styles.homeShortcutTitle}>سوالات او جوابات</Text>
+                  <Ionicons name="help-circle-outline" color={getHomeFolderDesign('shortcut_1').folderIconColor} size={getHomeFolderDesign('shortcut_1').iconSize} />
+                  <Text style={homeFolderTitleStyle('shortcut_1', styles.homeShortcutTitle)}>سوالات او جوابات</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.homeShortcutCard}
+                  style={homeFolderCardStyle('shortcut_2', styles.homeShortcutCard)}
                   onPress={() => openSection('عمومي درسونه او کتابونه')}
                   activeOpacity={0.82}
                 >
-                  <Text style={styles.homeShortcutIcon}>▰</Text>
-                  <Text style={styles.homeShortcutTitle}>الکتب</Text>
+                  <Ionicons name="library-outline" color={getHomeFolderDesign('shortcut_2').folderIconColor} size={getHomeFolderDesign('shortcut_2').iconSize} />
+                  <Text style={homeFolderTitleStyle('shortcut_2', styles.homeShortcutTitle)}>الکتب</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.homeShortcutCard}
+                  style={homeFolderCardStyle('shortcut_3', styles.homeShortcutCard)}
                   onPress={() => setScreen('search')}
                   activeOpacity={0.82}
                 >
-                  <Text style={styles.homeShortcutIcon}>➤</Text>
-                  <Text style={styles.homeShortcutTitle}>د زده کړې مسیر</Text>
+                  <Ionicons name="school-outline" color={getHomeFolderDesign('shortcut_3').folderIconColor} size={getHomeFolderDesign('shortcut_3').iconSize} />
+                  <Text style={homeFolderTitleStyle('shortcut_3', styles.homeShortcutTitle)}>د زده کړې مسیر</Text>
                 </TouchableOpacity>
               </View>
 
               {/* اذکار او یادښتونه */}
               <View style={styles.homeWideCardsRow}>
                 <TouchableOpacity
-                  style={styles.homeWideCard}
+                  style={homeFolderCardStyle('wide_0', styles.homeWideCard)}
                   onPress={() => setScreen('adhkarHome')}
                   activeOpacity={0.82}
                 >
-                  <Text style={styles.homeWideIcon}>☾</Text>
+                  <Ionicons name="moon-outline" color={getHomeFolderDesign('wide_0').folderIconColor} size={getHomeFolderDesign('wide_0').iconSize} />
                   <View style={styles.homeWideTextBox}>
-                    <Text style={styles.homeWideTitle}>د سهار او ماښام اذکار</Text>
-                    <Text style={styles.homeWideSubtitle}>ورځني اذکار</Text>
+                    <Text style={homeFolderTitleStyle('wide_0', styles.homeWideTitle)}>د سهار او ماښام اذکار</Text>
+                    <Text style={homeFolderTitleStyle('wide_0', styles.homeWideSubtitle)}>ورځني اذکار</Text>
                   </View>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.homeWideCard}
+                  style={homeFolderCardStyle('wide_1', styles.homeWideCard)}
                   onPress={() => setScreen('notes')}
                   activeOpacity={0.82}
                 >
-                  <Text style={styles.homeWideIcon}>▤</Text>
+                  <Ionicons name="document-text-outline" color={getHomeFolderDesign('wide_1').folderIconColor} size={getHomeFolderDesign('wide_1').iconSize} />
                   <View style={styles.homeWideTextBox}>
-                    <Text style={styles.homeWideTitle}>زما نوټونه</Text>
-                    <Text style={styles.homeWideSubtitle}>شخصي یادښتونه</Text>
+                    <Text style={homeFolderTitleStyle('wide_1', styles.homeWideTitle)}>زما نوټونه</Text>
+                    <Text style={homeFolderTitleStyle('wide_1', styles.homeWideSubtitle)}>شخصي یادښتونه</Text>
                   </View>
                 </TouchableOpacity>
               </View>
 
 
 
-            </View>
+            </ScrollView>
 
             {/* ثابت لاندې مینو؛ یوازې په کورپاڼه کې ښکاري */}
-            <View style={styles.homeBottomNav}>
+            <View style={[styles.homeBottomNav, { marginBottom: homeDesign.navOffset, backgroundColor: homeDesign.navBackground }]}>
               <TouchableOpacity style={styles.homeNavItem} activeOpacity={0.75} onPress={() => setScreen('scholars')}>
-                <Text style={styles.homeNavIcon}>◎</Text>
+                <Ionicons name="library-outline" size={20} color={COLORS.goldLight} />
                 <Text style={styles.homeNavLabel}>کتابتون</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.homeNavItem} activeOpacity={0.75} onPress={() => setScreen('adhkarHome')}>
-                <Text style={styles.homeNavIcon}>☾</Text>
+                <Ionicons name="moon-outline" size={20} color={COLORS.goldLight} />
                 <Text style={styles.homeNavLabel}>اذکار</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.homeNavItem} activeOpacity={0.75} onPress={() => setScreen('notes')}>
-                <Text style={styles.homeNavIcon}>▤</Text>
+                <Ionicons name="document-text-outline" size={20} color={COLORS.goldLight} />
                 <Text style={styles.homeNavLabel}>نوټونه</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.homeNavItem} activeOpacity={0.75} onPress={() => setScreen('settings')}>
-                <Text style={styles.homeNavIcon}>⚙</Text>
+                <Ionicons name="settings-outline" size={20} color={COLORS.goldLight} />
                 <Text style={styles.homeNavLabel}>تنظیمات</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.homeNavItem, styles.homeNavItemActive]} activeOpacity={0.75} onPress={() => setScreen('home')}>
-                <Text style={styles.homeNavIconActive}>⌂</Text>
+                <Ionicons name="home" size={22} color={COLORS.gold} />
                 <Text style={styles.homeNavLabelActive}>کور</Text>
               </TouchableOpacity>
             </View>
@@ -3043,6 +3146,14 @@ export default function App() {
 
             <View style={styles.formCard}>
               <Text style={styles.cardHeading}>
+                د کورپاڼې ډیزاین او شخصي اختیارونه
+              </Text>
+              <Text style={styles.mutedText}>د فولډرونو اندازه، رنګونه، لیکدود، چوکاټ او د کورپاڼې عمومي بڼه پخپله تنظیم کړئ.</Text>
+              <GoldButton title="د کورپاڼې ډیزاین تنظیمول" onPress={() => setScreen('homeDesign')} />
+            </View>
+
+            <View style={styles.formCard}>
+              <Text style={styles.cardHeading}>
                 خبرتیاوې
               </Text>
 
@@ -3077,6 +3188,209 @@ export default function App() {
               secondary
               onPress={() => setScreen('home')}
             />
+          </ScrollView>
+        )}
+
+        {screen === 'homeDesign' && (
+          <ScrollView contentContainerStyle={styles.pageContent}>
+            <PageHeader title="د کورپاڼې ډیزاین" subtitle="ټول رنګونه او فولډرونه په خپل اختیار برابر کړئ" onBack={() => setScreen('settings')} />
+
+            <View style={styles.formCard}>
+              <Text style={styles.cardHeading}>د کورپاڼې عمومي شالید</Text>
+              <View style={styles.designColorGrid}>
+                {['#E8EEE8', '#17231B', '#FFFFFF', '#F1E4C5', '#DCE8F1', '#242B35'].map(color => (
+                  <TouchableOpacity key={color} onPress={() => updateHomeDesign({ pageBackground: color })} style={[styles.designColorButton, { backgroundColor: color, borderColor: homeDesign.pageBackground === color ? COLORS.gold : COLORS.border }]} />
+                ))}
+              </View>
+              <Text style={styles.designLabel}>خپل خوښ رنګ ولیکئ (HEX)</Text>
+              <TextInput value={designCustomColor} onChangeText={setDesignCustomColor} autoCapitalize="characters" placeholder="#12A4EF" placeholderTextColor={COLORS.muted} style={styles.designColorInput} />
+              <View style={styles.designOptionRow}>
+                {[{ key: 'pageBackground', label: 'د پاڼې شالید' }, { key: 'headerBackground', label: 'سرلیک' }, { key: 'prayerBackground', label: 'د لمانځه کارت' }, { key: 'navBackground', label: 'لاندې مینو' }, { key: 'folderBackground', label: 'د فولډر شالید' }, { key: 'folderTextColor', label: 'لیکل' }, { key: 'folderIconColor', label: 'نښې' }, { key: 'folderBorderColor', label: 'چوکاټ' }].map(item => (
+                  <TouchableOpacity key={item.key} onPress={() => applyCustomHomeColor(item.key)} style={styles.designChoice}><Text style={styles.designChoiceText}>{item.label}</Text></TouchableOpacity>
+                ))}
+              </View>
+              <Text style={styles.designLabel}>د سرلیک شالید</Text>
+              <View style={styles.designColorGrid}>
+                {HOME_COLOR_OPTIONS.slice(0, 12).map(color => (
+                  <TouchableOpacity key={color} onPress={() => updateHomeDesign({ headerBackground: color })} style={[styles.designColorButton, { backgroundColor: color, borderColor: homeDesign.headerBackground === color ? COLORS.gold : COLORS.border }]} />
+                ))}
+              </View>
+              <Text style={styles.designLabel}>د لمانځه کارت شالید</Text>
+              <View style={styles.designColorGrid}>
+                {HOME_COLOR_OPTIONS.slice(0, 12).map(color => (
+                  <TouchableOpacity key={color} onPress={() => updateHomeDesign({ prayerBackground: color })} style={[styles.designColorButton, { backgroundColor: color, borderColor: homeDesign.prayerBackground === color ? COLORS.gold : COLORS.border }]} />
+                ))}
+              </View>
+              <Text style={styles.designLabel}>د لاندې مینو شالید</Text>
+              <View style={styles.designColorGrid}>
+                {HOME_COLOR_OPTIONS.slice(0, 12).map(color => (
+                  <TouchableOpacity key={color} onPress={() => updateHomeDesign({ navBackground: color })} style={[styles.designColorButton, { backgroundColor: color, borderColor: homeDesign.navBackground === color ? COLORS.gold : COLORS.border }]} />
+                ))}
+              </View>
+              <Text style={styles.cardHeading}>ټول فولډرونه – عمومي بڼه</Text>
+              <Text style={styles.designLabel}>د فولډر شالید رنګ</Text>
+              <View style={styles.designColorGrid}>
+                {HOME_COLOR_OPTIONS.slice(0, 12).map(color => (
+                  <TouchableOpacity key={color} onPress={() => updateHomeDesign({ folderBackground: color })} style={[styles.designColorButton, { backgroundColor: color, borderColor: homeDesign.folderBackground === color ? COLORS.gold : COLORS.border }]} />
+                ))}
+              </View>
+              <Text style={styles.designLabel}>د لیکلو رنګ</Text>
+              <View style={styles.designColorGrid}>
+                {HOME_COLOR_OPTIONS.slice(12).map(color => (
+                  <TouchableOpacity key={color} onPress={() => updateHomeDesign({ folderTextColor: color })} style={[styles.designColorButton, { backgroundColor: color, borderColor: homeDesign.folderTextColor === color ? COLORS.gold : COLORS.border }]} />
+                ))}
+              </View>
+              <Text style={styles.designLabel}>د نښو رنګ</Text>
+              <View style={styles.designColorGrid}>
+                {HOME_COLOR_OPTIONS.slice(12).map(color => (
+                  <TouchableOpacity key={color} onPress={() => updateHomeDesign({ folderIconColor: color })} style={[styles.designColorButton, { backgroundColor: color, borderColor: homeDesign.folderIconColor === color ? COLORS.gold : COLORS.border }]} />
+                ))}
+              </View>
+              <Text style={styles.designLabel}>د چوکاټ رنګ</Text>
+              <View style={styles.designColorGrid}>
+                {HOME_COLOR_OPTIONS.slice(0, 12).map(color => (
+                  <TouchableOpacity key={color} onPress={() => updateHomeDesign({ folderBorderColor: color })} style={[styles.designColorButton, { backgroundColor: color, borderColor: homeDesign.folderBorderColor === color ? '#FFFFFF' : COLORS.border, borderWidth: homeDesign.folderBorderColor === color ? 3 : 1 }]} />
+                ))}
+              </View>
+              <Text style={styles.designLabel}>د چوکاټ بڼه</Text>
+              <View style={styles.designOptionRow}>
+                {[{ value: 'solid', label: 'پرله‌پسې' }, { value: 'dashed', label: 'کرښې' }, { value: 'dotted', label: 'ټکي' }].map(item => (
+                  <TouchableOpacity key={item.value} onPress={() => updateHomeDesign({ folderBorderStyle: item.value })} style={[styles.designChoice, homeDesign.folderBorderStyle === item.value && styles.designChoiceActive]}>
+                    <Text style={styles.designChoiceText}>{item.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <Text style={styles.designLabel}>د لیکلو فونټ</Text>
+              <View style={styles.designOptionRow}>
+                {['System', 'sans-serif', 'serif', 'monospace'].map(font => (
+                  <TouchableOpacity key={font} onPress={() => updateHomeDesign({ fontFamily: font })} style={[styles.designChoice, homeDesign.fontFamily === font && styles.designChoiceActive]}>
+                    <Text style={styles.designChoiceText}>{font === 'System' ? 'اصلي' : font}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <Text style={styles.designLabel}>د لیکلو اندازه: {homeDesign.titleSize}</Text>
+              <View style={styles.designOptionRow}>
+                <TouchableOpacity style={styles.designStepButton} onPress={() => updateHomeDesign({ titleSize: Math.max(8, homeDesign.titleSize - 1) })}><Text style={styles.designStepText}>− کوچنی</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.designStepButton} onPress={() => updateHomeDesign({ titleSize: Math.min(24, homeDesign.titleSize + 1) })}><Text style={styles.designStepText}>+ غټ</Text></TouchableOpacity>
+              </View>
+              <Text style={styles.designLabel}>د نښې اندازه: {homeDesign.iconSize}</Text>
+              <View style={styles.designOptionRow}>
+                <TouchableOpacity style={styles.designStepButton} onPress={() => updateHomeDesign({ iconSize: Math.max(12, homeDesign.iconSize - 1) })}><Text style={styles.designStepText}>− کوچنۍ</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.designStepButton} onPress={() => updateHomeDesign({ iconSize: Math.min(42, homeDesign.iconSize + 1) })}><Text style={styles.designStepText}>+ غټه</Text></TouchableOpacity>
+              </View>
+              <Text style={styles.designLabel}>د فولډر لوړوالی: {homeDesign.folderHeight}</Text>
+              <View style={styles.designOptionRow}>
+                <TouchableOpacity style={styles.designStepButton} onPress={() => updateHomeDesign({ folderHeight: Math.max(38, homeDesign.folderHeight - 3) })}><Text style={styles.designStepText}>− کوچنی</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.designStepButton} onPress={() => updateHomeDesign({ folderHeight: Math.min(130, homeDesign.folderHeight + 3) })}><Text style={styles.designStepText}>+ غټ</Text></TouchableOpacity>
+              </View>
+              <Text style={styles.designLabel}>د چوکاټ پلنوالی: {homeDesign.folderBorderWidth}</Text>
+              <View style={styles.designOptionRow}>
+                <TouchableOpacity style={styles.designStepButton} onPress={() => updateHomeDesign({ folderBorderWidth: Math.max(0, homeDesign.folderBorderWidth - 1) })}><Text style={styles.designStepText}>− نری</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.designStepButton} onPress={() => updateHomeDesign({ folderBorderWidth: Math.min(7, homeDesign.folderBorderWidth + 1) })}><Text style={styles.designStepText}>+ پلن</Text></TouchableOpacity>
+              </View>
+              <Text style={styles.designLabel}>د چوکاټ ګردوالی: {homeDesign.folderRadius}</Text>
+              <View style={styles.designOptionRow}>
+                <TouchableOpacity style={styles.designStepButton} onPress={() => updateHomeDesign({ folderRadius: Math.max(0, homeDesign.folderRadius - 2) })}><Text style={styles.designStepText}>− مربع</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.designStepButton} onPress={() => updateHomeDesign({ folderRadius: Math.min(40, homeDesign.folderRadius + 2) })}><Text style={styles.designStepText}>+ ګرد</Text></TouchableOpacity>
+              </View>
+              <Text style={styles.designLabel}>د فولډرونو ترمنځ فاصله: {homeDesign.gap}</Text>
+              <View style={styles.designOptionRow}>
+                <TouchableOpacity style={styles.designStepButton} onPress={() => updateHomeDesign({ gap: Math.max(0, homeDesign.gap - 1) })}><Text style={styles.designStepText}>− فاصله کمه</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.designStepButton} onPress={() => updateHomeDesign({ gap: Math.min(16, homeDesign.gap + 1) })}><Text style={styles.designStepText}>+ فاصله زیاته</Text></TouchableOpacity>
+              </View>
+              <Text style={styles.designLabel}>د لاندې مینو لوړوالی/پورته کېدل: {homeDesign.navOffset}</Text>
+              <View style={styles.designOptionRow}>
+                <TouchableOpacity style={styles.designStepButton} onPress={() => updateHomeDesign({ navOffset: Math.max(20, homeDesign.navOffset - 4) })}><Text style={styles.designStepText}>− ښکته</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.designStepButton} onPress={() => updateHomeDesign({ navOffset: Math.min(90, homeDesign.navOffset + 4) })}><Text style={styles.designStepText}>+ پورته</Text></TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.formCard}>
+              <Text style={styles.cardHeading}>د هر فولډر جلا تنظیم</Text>
+              <Text style={styles.designLabel}>هغه فولډر وټاکئ چې ډیزاین یې بدلول غواړئ</Text>
+              <View style={styles.designFolderList}>
+                {HOME_FOLDER_OPTIONS.map(item => (
+                  <TouchableOpacity key={item.key} onPress={() => setDesignFolderKey(item.key)} style={[styles.designFolderChoice, designFolderKey === item.key && styles.designChoiceActive]}>
+                    <Text style={styles.designChoiceText}>{item.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <Text style={styles.designLabel}>د ټاکلي فولډر شالید رنګ</Text>
+              <View style={styles.designColorGrid}>
+                {HOME_COLOR_OPTIONS.slice(0, 12).map(color => (
+                  <TouchableOpacity key={color} onPress={() => updateHomeDesign({ folderBackground: color }, designFolderKey)} style={[styles.designColorButton, { backgroundColor: color, borderColor: getHomeFolderDesign(designFolderKey).folderBackground === color ? '#FFFFFF' : COLORS.border, borderWidth: getHomeFolderDesign(designFolderKey).folderBackground === color ? 3 : 1 }]} />
+                ))}
+              </View>
+              <Text style={styles.designLabel}>د ټاکلي فولډر د لیکلو رنګ</Text>
+              <View style={styles.designColorGrid}>
+                {HOME_COLOR_OPTIONS.slice(12).map(color => (
+                  <TouchableOpacity key={color} onPress={() => updateHomeDesign({ folderTextColor: color }, designFolderKey)} style={[styles.designColorButton, { backgroundColor: color, borderColor: COLORS.border }]} />
+                ))}
+              </View>
+              <Text style={styles.designLabel}>د ټاکلي فولډر د نښو رنګ</Text>
+              <View style={styles.designColorGrid}>
+                {HOME_COLOR_OPTIONS.slice(12).map(color => (
+                  <TouchableOpacity key={color} onPress={() => updateHomeDesign({ folderIconColor: color }, designFolderKey)} style={[styles.designColorButton, { backgroundColor: color, borderColor: COLORS.border }]} />
+                ))}
+              </View>
+              <Text style={styles.designLabel}>د ټاکلي فولډر لپاره ځانګړی رنګ (HEX)</Text>
+              <TextInput value={designCustomColor} onChangeText={setDesignCustomColor} autoCapitalize="characters" placeholder="#12A4EF" placeholderTextColor={COLORS.muted} style={styles.designColorInput} />
+              <View style={styles.designOptionRow}>
+                {[{ key: 'folderBackground', label: 'شالید' }, { key: 'folderTextColor', label: 'لیکل' }, { key: 'folderIconColor', label: 'نښې' }, { key: 'folderBorderColor', label: 'چوکاټ' }].map(item => (
+                  <TouchableOpacity key={item.key} onPress={() => applyCustomHomeColor(item.key, designFolderKey)} style={styles.designChoice}><Text style={styles.designChoiceText}>{item.label}</Text></TouchableOpacity>
+                ))}
+              </View>
+              <Text style={styles.designLabel}>د ټاکلي فولډر چوکاټ جلا رنګ</Text>
+              <View style={styles.designColorGrid}>
+                {HOME_COLOR_OPTIONS.slice(0, 12).map(color => (
+                  <TouchableOpacity key={color} onPress={() => updateHomeDesign({ folderBorderColor: color }, designFolderKey)} style={[styles.designColorButton, { backgroundColor: color, borderColor: COLORS.border }]} />
+                ))}
+              </View>
+              <Text style={styles.designLabel}>د ټاکلي فولډر د لیکلو اندازه: {getHomeFolderDesign(designFolderKey).titleSize}</Text>
+              <View style={styles.designOptionRow}>
+                <TouchableOpacity style={styles.designStepButton} onPress={() => updateHomeDesign({ titleSize: Math.max(8, getHomeFolderDesign(designFolderKey).titleSize - 1) }, designFolderKey)}><Text style={styles.designStepText}>− کوچنی</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.designStepButton} onPress={() => updateHomeDesign({ titleSize: Math.min(24, getHomeFolderDesign(designFolderKey).titleSize + 1) }, designFolderKey)}><Text style={styles.designStepText}>+ غټ</Text></TouchableOpacity>
+              </View>
+              <Text style={styles.designLabel}>د ټاکلي فولډر د نښې اندازه: {getHomeFolderDesign(designFolderKey).iconSize}</Text>
+              <View style={styles.designOptionRow}>
+                <TouchableOpacity style={styles.designStepButton} onPress={() => updateHomeDesign({ iconSize: Math.max(12, getHomeFolderDesign(designFolderKey).iconSize - 1) }, designFolderKey)}><Text style={styles.designStepText}>− کوچنۍ</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.designStepButton} onPress={() => updateHomeDesign({ iconSize: Math.min(42, getHomeFolderDesign(designFolderKey).iconSize + 1) }, designFolderKey)}><Text style={styles.designStepText}>+ غټه</Text></TouchableOpacity>
+              </View>
+              <Text style={styles.designLabel}>د ټاکلي فولډر لوړوالی: {getHomeFolderDesign(designFolderKey).folderHeight}</Text>
+              <View style={styles.designOptionRow}>
+                <TouchableOpacity style={styles.designStepButton} onPress={() => updateHomeDesign({ folderHeight: Math.max(38, getHomeFolderDesign(designFolderKey).folderHeight - 3) }, designFolderKey)}><Text style={styles.designStepText}>− کوچنی</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.designStepButton} onPress={() => updateHomeDesign({ folderHeight: Math.min(130, getHomeFolderDesign(designFolderKey).folderHeight + 3) }, designFolderKey)}><Text style={styles.designStepText}>+ غټ</Text></TouchableOpacity>
+              </View>
+              <Text style={styles.designLabel}>د ټاکلي فولډر د چوکاټ بڼه</Text>
+              <View style={styles.designOptionRow}>
+                {[{ value: 'solid', label: 'پرله‌پسې' }, { value: 'dashed', label: 'کرښې' }, { value: 'dotted', label: 'ټکي' }].map(item => (
+                  <TouchableOpacity key={item.value} onPress={() => updateHomeDesign({ folderBorderStyle: item.value }, designFolderKey)} style={[styles.designChoice, getHomeFolderDesign(designFolderKey).folderBorderStyle === item.value && styles.designChoiceActive]}>
+                    <Text style={styles.designChoiceText}>{item.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <Text style={styles.designLabel}>د ټاکلي فولډر د چوکاټ پلنوالی: {getHomeFolderDesign(designFolderKey).folderBorderWidth}</Text>
+              <View style={styles.designOptionRow}>
+                <TouchableOpacity style={styles.designStepButton} onPress={() => updateHomeDesign({ folderBorderWidth: Math.max(0, getHomeFolderDesign(designFolderKey).folderBorderWidth - 1) }, designFolderKey)}><Text style={styles.designStepText}>− نری</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.designStepButton} onPress={() => updateHomeDesign({ folderBorderWidth: Math.min(7, getHomeFolderDesign(designFolderKey).folderBorderWidth + 1) }, designFolderKey)}><Text style={styles.designStepText}>+ پلن</Text></TouchableOpacity>
+              </View>
+              <Text style={styles.designLabel}>د ټاکلي فولډر د چوکاټ ګردوالی: {getHomeFolderDesign(designFolderKey).folderRadius}</Text>
+              <View style={styles.designOptionRow}>
+                <TouchableOpacity style={styles.designStepButton} onPress={() => updateHomeDesign({ folderRadius: Math.max(0, getHomeFolderDesign(designFolderKey).folderRadius - 2) }, designFolderKey)}><Text style={styles.designStepText}>− مربع</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.designStepButton} onPress={() => updateHomeDesign({ folderRadius: Math.min(40, getHomeFolderDesign(designFolderKey).folderRadius + 2) }, designFolderKey)}><Text style={styles.designStepText}>+ ګرد</Text></TouchableOpacity>
+              </View>
+              <Text style={styles.designLabel}>د ټاکلي فولډر فونټ</Text>
+              <View style={styles.designOptionRow}>
+                {['System', 'sans-serif', 'serif', 'monospace'].map(font => (
+                  <TouchableOpacity key={font} onPress={() => updateHomeDesign({ fontFamily: font }, designFolderKey)} style={[styles.designChoice, getHomeFolderDesign(designFolderKey).fontFamily === font && styles.designChoiceActive]}>
+                    <Text style={styles.designChoiceText}>{font === 'System' ? 'اصلي' : font}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <GoldButton title="د ټولو فولډرونو جلا تنظیمات پاکول" secondary onPress={() => updateHomeDesign({ perFolder: {} })} />
+              <GoldButton title="اصلي ډیزاین ته ستنېدل" secondary onPress={() => updateSettings({ homeDesign: DEFAULT_HOME_DESIGN })} />
+            </View>
+            <GoldButton title="کورپاڼې ته ستنېدل" onPress={() => setScreen('home')} />
           </ScrollView>
         )}
 
@@ -3240,10 +3554,14 @@ const styles = StyleSheet.create({
 
   homeContent: {
     flex: 1,
+  },
+
+  homeScrollContent: {
+    flexGrow: 1,
     justifyContent: 'flex-start',
     paddingHorizontal: 7,
     paddingTop: 2,
-    paddingBottom: 2
+    paddingBottom: 3
   },
 
   homeHeroHeader: {
@@ -3462,8 +3780,8 @@ const styles = StyleSheet.create({
     borderColor: COLORS.gold,
     borderRadius: 31,
     padding: 5,
-    marginTop: 5,
-    marginBottom: 5,
+    marginTop: 2,
+    marginBottom: 2,
     overflow: 'hidden',
     elevation: 7,
     shadowColor: '#000000',
@@ -3538,14 +3856,14 @@ const styles = StyleSheet.create({
   homeShortcutGrid: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
-    gap: 4,
-    marginTop: 3,
-    marginBottom: 5
+    gap: 3,
+    marginTop: 1,
+    marginBottom: 2
   },
 
   homeShortcutCard: {
     flex: 1,
-    minHeight: 43,
+    minHeight: 56,
     backgroundColor: '#075033',
     borderWidth: 3,
     borderColor: COLORS.gold,
@@ -3563,13 +3881,13 @@ const styles = StyleSheet.create({
 
   homeShortcutIcon: {
     color: COLORS.gold,
-    fontSize: 17,
+    fontSize: 23,
     marginBottom: 1
   },
 
   homeShortcutTitle: {
     color: '#FFFFFF',
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: 'bold',
     textAlign: 'center'
   },
@@ -3577,9 +3895,9 @@ const styles = StyleSheet.create({
   homeWideCardsRow: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
-    gap: 5,
-    marginTop: 3,
-    marginBottom: 3
+    gap: 3,
+    marginTop: 1,
+    marginBottom: 1
   },
 
   homeWideCard: {
@@ -3648,12 +3966,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+    marginTop: 0,
     marginBottom: 0
   },
 
   homeCategoryCard: {
     width: '32%',
-    minHeight: 32,
+    minHeight: 48,
     backgroundColor: '#105239',
     borderWidth: 1,
     borderColor: COLORS.gold,
@@ -3666,13 +3985,13 @@ const styles = StyleSheet.create({
 
   homeCategoryIcon: {
     color: COLORS.gold,
-    fontSize: 13,
+    fontSize: 20,
     marginBottom: 0
   },
 
   homeCategoryTitle: {
     color: '#FFFFFF',
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: 'bold',
     textAlign: 'center'
   },
@@ -3705,7 +4024,7 @@ const styles = StyleSheet.create({
   homeBottomNav: {
     minHeight: 54,
     // مینو د سور نښه شوي حد څخه پورته ساتل کېږي؛ لاندې د سیستم navigation لپاره تشه پاتې ده
-    marginBottom: Platform.OS === 'android' ? 42 : 12,
+    marginBottom: Platform.OS === 'android' ? 48 : 16,
     flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-around',
@@ -3757,6 +4076,22 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: 'bold'
   },
+
+  mutedText: { color: COLORS.muted, fontSize: 11, textAlign: 'right', marginBottom: 8 },
+  designColorGrid: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginVertical: 8, justifyContent: 'flex-start'
+  },
+  designColorButton: { width: 34, height: 34, borderRadius: 18, borderWidth: 2 },
+  designColorInput: { backgroundColor: COLORS.card2, borderColor: COLORS.gold, borderWidth: 1, borderRadius: 9, color: '#FFFFFF', paddingHorizontal: 12, paddingVertical: 9, textAlign: 'left', fontSize: 14 },
+  designLabel: { color: COLORS.goldLight, fontSize: 13, fontWeight: 'bold', textAlign: 'right', marginTop: 12, marginBottom: 5 },
+  designOptionRow: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 7, marginVertical: 5 },
+  designChoice: { backgroundColor: COLORS.card2, borderColor: COLORS.border, borderWidth: 1, borderRadius: 9, paddingHorizontal: 10, paddingVertical: 8 },
+  designChoiceActive: { borderColor: COLORS.gold, borderWidth: 2, backgroundColor: '#315B42' },
+  designChoiceText: { color: '#FFFFFF', fontSize: 11, fontWeight: 'bold' },
+  designStepButton: { flex: 1, minWidth: 100, backgroundColor: COLORS.card2, borderWidth: 1, borderColor: COLORS.gold, borderRadius: 10, padding: 10, alignItems: 'center' },
+  designStepText: { color: COLORS.goldLight, fontSize: 12, fontWeight: 'bold' },
+  designFolderList: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 6, marginVertical: 8 },
+  designFolderChoice: { backgroundColor: COLORS.card2, borderWidth: 1, borderColor: COLORS.border, borderRadius: 9, paddingHorizontal: 9, paddingVertical: 8 },
 
   actionCard: {
     width: '48%',
