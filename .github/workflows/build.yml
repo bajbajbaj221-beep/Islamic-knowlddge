@@ -18,7 +18,16 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
-        run: npm install
+        run: npm install --no-audit --no-fund
+
+      - name: Check installed packages
+        run: |
+          echo "Checking PDF package..."
+          npm ls react-native-pdf || true
+          echo "Checking Expo Asset..."
+          npm ls expo-asset || true
+          echo "Checking Expo Constants..."
+          npm ls expo-constants || true
 
       - name: Install EAS CLI
         run: npm install -g eas-cli
